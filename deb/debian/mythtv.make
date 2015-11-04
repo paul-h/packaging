@@ -22,7 +22,7 @@ EPOCH:=$(shell dpkg-parsechangelog | sed '/^Version/!d; s/.* //; s/:.*//;')
 
 TODAY=$(shell date +%Y%m%d)
 
-MAIN_GIT_URL=git://github.com/MythTV/mythtv.git
+MAIN_GIT_URL=git://github.com/paul-h/mythtv.git
 MYTHWEB_GIT_URL=git://github.com/MythTV/mythweb.git
 MYTHBUNTU_THEME_GIT_URL=git://github.com/MythTV-Themes/Mythbuntu.git
 
@@ -56,7 +56,7 @@ get-git-source:
 	if [ -d .git ]; then \
 		git fetch ;\
 		git checkout $(GIT_BRANCH) || git checkout $(GIT_BRANCH_FALLBACK);\
-		git pull --rebase; \
+		git pull ; \
 	else \
 		git clone $(MAIN_GIT_URL) tmp ;\
 		mv tmp/.git* tmp/* . ;\
@@ -69,7 +69,7 @@ get-git-source:
 		cd mythplugins/mythweb; \
 		git fetch ;\
 		git checkout $(GIT_BRANCH) || git checkout $(GIT_BRANCH_FALLBACK);\
-		git pull --rebase ;\
+		git pull ;\
 	else \
 		mkdir -p mythplugins/mythweb ;\
 		git clone $(MYTHWEB_GIT_URL) tmp ;\
