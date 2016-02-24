@@ -19,6 +19,9 @@ ifneq (,$(filter nostrip noopt,$(DEB_BUILD_OPTIONS)))
 MYTHTV_COMPILE_TYPE = profile
 endif
 
+## Export QT version explicitely (fixes issues for non x86/arm builders)
+export QT_SELECT = 5
+
 #                                      #
 # Architecture Independent Build flags #
 #                                      #
@@ -41,7 +44,9 @@ MYTHTV_CONFIGURE_OPTS +=    --compile-type=$(MYTHTV_COMPILE_TYPE) \
 				--enable-libvpx \
 				--enable-sdl \
 				--enable-libmp3lame \
-				--enable-libx264
+				--enable-libx264 \
+				--enable-vdpau
+
 ifeq "$(DEB_BUILD_ARCH)" "armhf"
 	MYTHTV_CONFIGURE_OPTS += --disable-opengl-video --disable-opengl --disable-vaapi
 else
@@ -52,13 +57,13 @@ endif
 #                                    #
 DEB_BUILD_ARCH ?= $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 ifeq "$(DEB_BUILD_ARCH)" "i386"
-	MYTHTV_CONFIGURE_OPTS +=  --cpu=i686 --enable-mmx  --enable-vdpau
-endif
-ifeq "$(DEB_BUILD_ARCH)" "amd64"
-	MYTHTV_CONFIGURE_OPTS += --enable-vdpau
+	MYTHTV_CONFIGURE_OPTS +=  --cpu=i686 --enable-mmx  
 endif
 ifeq "$(DEB_BUILD_ARCH)" "powerpc"
 	MYTHTV_CONFIGURE_OPTS += --enable-altivec --extra-cxxflags="-maltivec"
+endif
+ifeq "$(DEB_BUILD_ARCH)" "armhf"
+        MYTHTV_CONFIGURE_OPTS += --extra-cflags="-I/opt/vc/include" --extra-cxxflags="-I/opt/vc/include" --extra-cflags="-I/opt/vc/include/IL" --extra-cxxflags="-I/opt/vc/include/IL" --extra-libs="-L/opt/vc/lib" --extra-cflags="-I/opt/vc/include/interface/vcos/pthreads" --extra-cxxflags="-I/opt/vc/include/interface/vcos/pthreads" --extra-cflags="-I/opt/vc/include/interface/vmcs_host/linux" --extra-cxxflags="-I/opt/vc/include/interface/vmcs_host/linux" --extra-libs="-lEGL"
 endif
 
 #Mythplugins configure opts
@@ -145,6 +150,9 @@ override_dh_installinit:
 	#(MythTV) Set correct permissions for png and html files
 	find debian/tmp -regex '.*\.png$$' -print0 | xargs -0 -r chmod 644
 	find debian/tmp -regex '.*\.html$$' -print0 | xargs -0 -r chmod 644
+
+override_dh_systemd_enable:
+	dh_systemd_enable --name=mythtv-backend
 
 override_dh_strip:
 	dh_strip --dbg-package=mythtv-dbg
