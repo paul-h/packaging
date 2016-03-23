@@ -90,6 +90,7 @@ Build-Depends:  debhelper (>= 9),
                 uuid-dev,
                 libxml-xpath-perl,
                 git,
+                dh-systemd,
                 libraspberrypi-dev [armhf] | hello,
 
 Package: mythtv
@@ -139,6 +140,8 @@ Depends: pwgen,
          python,
          libxml-xpath-perl,
          pwgen,
+         pciutils,
+         usbutils,
          ${shlibs:Depends},
          ${misc:Depends}
 Suggests: mythtv-doc
