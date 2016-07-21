@@ -95,7 +95,7 @@ Build-Depends:  debhelper (>= 9),
 
 Package: mythtv
 Architecture: all
-Depends: mysql-server | virtual-mysql-server | mysql-server-5.6 | mariadb-server,
+Depends: mysql-server | virtual-mysql-server | mysql-server-5.7 | mysql-server-5.6 | mariadb-server,
          mythtv-database,
          mythtv-frontend,
          mythtv-backend,
@@ -131,7 +131,7 @@ Package: mythtv-common
 Architecture: any
 Depends: pwgen,
          adduser,
-         mysql-client | virtual-mysql-client | mysql-client-5.6 | mariadb-client,
+         mysql-client | virtual-mysql-client | mysql-client-5.7 | mysql-client-5.6 | mariadb-client,
          fonts-liberation | ttf-liberation,
          fonts-droid-fallback | fonts-droid | ttf-droid,
          ttf-dejavu,
@@ -207,7 +207,7 @@ Package: mythtv-database
 Architecture: all
 Depends: mythtv-common,
          libdbd-mysql-perl,
-         mysql-client | virtual-mysql-client | mysql-client-5.6 | mariadb-client,
+         mysql-client | virtual-mysql-client | mysql-client-5.7 | mysql-client-5.6 | mariadb-client,
          cron,
          ${misc:Depends}
 Recommends: update-notifier | update-notifier-kde
@@ -269,6 +269,8 @@ Depends: mythtv-common,
          transcode,
          python,
          python-imdbpy,
+         libgles2-mesa-dev [armhf],
+         libegl1-mesa-dev [armhf],
 Recommends: libmythtv-perl, python-imaging, udisks2 | udisks
 Suggests: mythtv-backend, mythmusic, mythweather, mythgallery, mythgame, ntp | time-daemon | ntp-simple
 Conflicts: mythtv (<< 0.8-1), mythappearance (<< 0.21.0), mythstream (<< 0.21.0), mythflix (<< 0.23.0)
@@ -288,12 +290,12 @@ Description: Personal video recorder application (client)
  For a complete installation of all MythTV components, install the 'mythtv'
  package.
 
-Package: libmyth-#ABI#-0
+Package: libmyth
 Architecture: any
 Section: libs
 Depends: ${shlibs:Depends}, libqt5sql5-mysql, ${misc:Depends}
-Conflicts: mythtv (<< 0.7-5), libmyth-0.23-0, libmyth-0.24-0, libmyth-0.25-0, libmyth-0.26-0, libmyth-0.27-0
-Replaces: mythtv (<< 0.7-5), libmyth-0.23-0, libmyth-0.24-0, libmyth-0.25-0, libmyth-0.26-0, libmyth-0.27-0
+Conflicts: mythtv (<< 0.7-5), libmyth-0.23-0, libmyth-0.24-0, libmyth-0.25-0, libmyth-0.26-0, libmyth-0.27-0, libmyth-0.28-0, libmyth-0.29-0, libmyth-29-0
+Replaces: mythtv (<< 0.7-5), libmyth-0.23-0, libmyth-0.24-0, libmyth-0.25-0, libmyth-0.26-0, libmyth-0.27-0, libmyth-0.28-0, libmyth-0.29-0, libmyth-29-0
 Description: Common library code for MythTV and add-on modules (runtime)
  MythTV provides a unified graphical interface for recording and viewing
  television programs. Refer to the mythtv package for more information.
@@ -304,9 +306,9 @@ Description: Common library code for MythTV and add-on modules (runtime)
 Package: libmyth-dev
 Architecture: any
 Section: libdevel
-Depends: libmyth-#ABI#-0 (= ${binary:Version}), ${misc:Depends}
-Provides: libmyth-#ABI#-0-dev
-Conflicts: libmyth-#ABI#-0-dev
+Depends: libmyth (= ${binary:Version}), ${misc:Depends}
+Conflicts: libmyth-0.23-0-dev, libmyth-0.24-0-dev, libmyth-0.25-0-dev, libmyth-0.26-0-dev, libmyth-0.27-0-dev, libmyth-0.28-0-dev, libmyth-0.29-0-dev, libmyth-29-0-dev
+Replaces: libmyth-0.23-0-dev, libmyth-0.24-0-dev, libmyth-0.25-0-dev, libmyth-0.26-0-dev, libmyth-0.27-0-dev, libmyth-0.28-0-dev, libmyth-0.29-0-dev, libmyth-29-0-dev
 Description: Common library code for MythTV and add-on modules (development)
  MythTV provides a unified graphical interface for recording and viewing
  television programs. Refer to the mythtv package for more information.
@@ -353,7 +355,7 @@ Description: Python library to access some MythTV features
 Package: mythtv-backend-master
 Architecture: all
 Section: metapackages
-Depends: mysql-server | virtual-mysql-server | mysql-server-5.6 | mariadb-server,
+Depends: mysql-server | virtual-mysql-server | mysql-server-5.7 | mysql-server-5.6 | mariadb-server,
          ntp | time-daemon | ntp-simple,
          mythtv-database,
          mythtv-backend,
@@ -473,8 +475,9 @@ Description: Weather station add-on module for MythTV
 Package: mythweb
 Architecture: all
 Depends: mythtv-common (>= ${binary:Version}), 
-         apache2-mpm-prefork | httpd, php5 | libapache2-mod-php5, 
-         php5-mysql, 
+         apache2 | httpd,
+         libapache2-mod-php | libapache2-mod-php5 | php | php5, 
+         php-mysql | php5-mysql, 
          php-mythtv,
          libhttp-date-perl,
          libjs-prototype,
