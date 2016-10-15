@@ -57,8 +57,11 @@ get-git-source:
 		git fetch ;\
 		git checkout $(GIT_BRANCH) || git checkout $(GIT_BRANCH_FALLBACK);\
 		git pull ; \
+		cd mythtv/programs/mythfrontend_qml/QmlVlc; \
+		git fetch ;\
+		git merge origin/master ;\
 	else \
-		git clone $(MAIN_GIT_URL) tmp ;\
+		git clone --recursive $(MAIN_GIT_URL) tmp ;\
 		mv tmp/.git* tmp/* . ;\
 		rm -rf tmp ;\
 		git checkout $(GIT_BRANCH) || git checkout $(GIT_BRANCH_FALLBACK);\
