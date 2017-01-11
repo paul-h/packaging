@@ -1,7 +1,8 @@
 [Unit]
 Description=MythTV Backend
 Documentation=https://www.mythtv.org/wiki/Mythbackend
-After=mysql.service network.target
+After=network-online.target mysqld.service
+Wants=network-online.target
  
 [Service]
 User=mythtv
