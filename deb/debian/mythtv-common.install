@@ -6,7 +6,7 @@ usr/bin/mythmetadatalookup
 usr/bin/mythccextractor
 usr/bin/mythutil
 usr/bin/mythfrontend_qml
-usr/lib/vlc/plugins/access/libaccess_myth_plugin.so
+usr/lib/x86_64-linux-gnu/vlc/plugins/libaccess_myth_plugin.so
 usr/share/mythtv/qml
 usr/share/mythtv/*.xml
 usr/share/mythtv/*.pl
