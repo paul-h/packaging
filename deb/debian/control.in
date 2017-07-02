@@ -147,6 +147,7 @@ Depends: pwgen,
          pwgen,
          pciutils,
          usbutils,
+         qml-module-qtwebengine,
          ${shlibs:Depends},
          ${misc:Depends}
 Suggests: mythtv-doc
