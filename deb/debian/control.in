@@ -92,6 +92,11 @@ Build-Depends:  debhelper (>= 9),
                 git,
                 dh-systemd,
                 libraspberrypi-dev [armhf] | hello,
+                libqt5webenginecore5,
+                qml-module-qtwebengine,
+                qtwebengine5-dev,
+                qml-module-qtpositioning,
+                qtpositioning5-dev,
 
 Package: mythtv
 Architecture: all
