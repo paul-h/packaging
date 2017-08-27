@@ -148,6 +148,9 @@ Depends: pwgen,
          pciutils,
          usbutils,
          qml-module-qtwebengine,
+         python-future,
+         python-requests,
+         python-requests-cache,
          ${shlibs:Depends},
          ${misc:Depends}
 Suggests: mythtv-doc
