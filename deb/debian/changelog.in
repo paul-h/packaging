@@ -1,8 +1,8 @@
-mythtv (2:29.0~master-manualbuildubuntu1) zesty; urgency=medium
+mythtv (2:30.0~master-0ubuntu1) artful; urgency=medium
 
-  * Dummy entry to bump version to 29.0 from 0.29
+  * First public build of new qml frontend
 
- -- Thomas Mashos <thomas@mashos.com>  Sun, 11 Jun 2017 12:33:39 -0700
+ -- Paul Harrison <pharrison@mythtv.org>  Wed, 22 Nov 2017 19:55:00 +0000
 
 mythtv (2:0.29.0~dummychangelogentry-manualbuild) jessie; urgency=low
 
