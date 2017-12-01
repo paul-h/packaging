@@ -153,6 +153,8 @@ Depends: pwgen,
          python-future,
          python-requests,
          python-requests-cache,
+         python-feedparser,
+         ffmpeg,
          ${shlibs:Depends},
          ${misc:Depends}
 Suggests: mythtv-doc
