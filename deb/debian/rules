@@ -71,7 +71,6 @@ endif
 
 #Mythplugins configure opts
 MYTHPLUGINS_CONFIGURE_OPTS += --prefix=/usr \
-                              --enable-all  \
                               --zm-version=1.22.3 \ 
                               --qmake=/usr/bin/qmake \
 
@@ -90,7 +89,7 @@ endif
 LDFLAGS:=$(shell DEB_LDFLAGS_MAINT_STRIP="-Wl,-Bsymbolic-functions" dpkg-buildflags --get LDFLAGS)
 
 # Need a writable home directory for ccache
-export HOME=$(CURDIR)/debian/home
+export HOME=$(CURDIR)/debian/home_$(DEB_BUILD_ARCH)
 
 %:
 	dh $@ --parallel --with systemd
