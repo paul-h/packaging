@@ -90,6 +90,7 @@ Build-Depends:  debhelper (>= 9),
                 uuid-dev,
                 libxml-xpath-perl,
                 git,
+                libsystemd-dev,
                 dh-systemd,
                 libraspberrypi-dev [armhf] | hello,
                 libqt5webenginecore5,
@@ -235,7 +236,7 @@ Description: Personal video recorder application (database)
 
 Package: mythtv-backend
 Architecture: any
-Depends: mythtv-common, mythtv-transcode-utils, ${shlibs:Depends}, cron, wget, zenity | kdebase-bin, gksu | kdebase-bin, xterm, python, libjs-jquery, libxml-simple-perl, ${misc:Depends}
+Depends: mythtv-common, mythtv-transcode-utils, ${shlibs:Depends}, cron, wget, zenity | kdebase-bin, xterm, python, libjs-jquery, libxml-simple-perl, ${misc:Depends}
 Conflicts: mythtv (<< 0.8-1)
 Replaces: mythtv (<< 0.8-1), mythtv-frontend (<= 0.20-0.4)
 Recommends: ntp | time-daemon | ntp-simple, logrotate, libmyth-python, libmythtv-perl
@@ -274,7 +275,6 @@ Depends: mythtv-common,
          libnotify-bin,
          adduser,
          zenity | kdebase-bin,
-         gksu | kdebase-bin,
          wmctrl,
          libxml-simple-perl,
          libwww-perl,
@@ -283,7 +283,7 @@ Depends: mythtv-common,
          python-imdbpy,
          libgles2-mesa-dev [armhf],
          libegl1-mesa-dev [armhf],
-Recommends: libmythtv-perl, python-imaging, udisks2 | udisks
+Recommends: libmythtv-perl, python-imaging | python-pil, udisks2 | udisks
 Suggests: mythtv-backend, mythmusic, mythweather, mythgallery, mythgame, ntp | time-daemon | ntp-simple
 Conflicts: mythtv (<< 0.8-1), mythappearance (<< 0.21.0), mythstream (<< 0.21.0), mythflix (<< 0.23.0)
 Replaces: mythtv (<< 0.8-1),  mythappearance (<< 0.21.0), mythvideo
@@ -511,7 +511,7 @@ Depends: mythtv-transcode-utils(>= ${binary:Version}),
          genisoimage,
          dvd+rw-tools,
          python,
-         python-imaging,
+         python-imaging | python-pil,
          python-mysqldb,
          pmount,
          ${shlibs:Depends},
