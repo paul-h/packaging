@@ -100,7 +100,10 @@ Build-Depends:  debhelper (>= 9),
                 qml-module-qtpositioning,
                 qtpositioning5-dev,
                 libvlccore-dev,
-                libvlc-dev
+                libvlc-dev,
+                libbluray-dev,
+                liblzo2-dev,
+                libxnvctrl-dev
 
 Package: mythtv
 Architecture: all
