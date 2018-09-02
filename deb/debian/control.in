@@ -104,9 +104,8 @@ Build-Depends:  debhelper (>= 9),
                 libbluray-dev,
                 liblzo2-dev,
                 libxnvctrl-dev,
-                libhdhomerun-dev,
-                python3-streamlink,
-                streamlink
+                libhdhomerun-dev
+
 
 
 Package: mythtv
@@ -159,6 +158,8 @@ Depends: adduser,
          usbutils,
          qml-module-qtwebengine,
          qml-module-qtwebsockets,
+         python3-streamlink,
+         streamlink,
          python-future,
          python-requests,
          python-requests-cache,
