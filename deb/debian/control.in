@@ -104,7 +104,9 @@ Build-Depends:  debhelper (>= 9),
                 libbluray-dev,
                 liblzo2-dev,
                 libxnvctrl-dev,
-                libhdhomerun-dev
+                libhdhomerun-dev,
+                python3-streamlink,
+                streamlink
 
 Package: mythtv
 Architecture: all
