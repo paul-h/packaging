@@ -614,6 +614,7 @@ public class QtActivity extends Activity
             view.setVisibility(View.GONE);
         }
         */
+
         super.onPause();
         QtApplication.invokeDelegate();
     }
