@@ -108,6 +108,9 @@ Build-Depends:  debhelper (>= 9),
                 python3-streamlink,
                 streamlink
 
+
+
+
 Package: mythtv
 Architecture: all
 Depends: default-mysql-server | virtual-mysql-server | mysql-server-5.7 | mysql-server-5.6 | mariadb-server,
@@ -158,6 +161,9 @@ Depends: adduser,
          usbutils,
          qml-module-qtwebengine,
          qml-module-qtwebsockets,
+         python3-streamlink,
+         streamlink,
+         qml-module-qtav,
          python-future,
          python-requests,
          python-requests-cache,
