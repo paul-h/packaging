@@ -101,12 +101,12 @@ Build-Depends:  debhelper (>= 9),
                 qtpositioning5-dev,
                 libvlccore-dev,
                 libvlc-dev,
+                libvlc-qt-dev,
                 libbluray-dev,
                 liblzo2-dev,
                 libxnvctrl-dev,
-                libhdhomerun-dev,
-                python3-streamlink,
-                streamlink
+                libhdhomerun-dev
+
 
 
 
@@ -296,6 +296,10 @@ Depends: mythtv-common,
          python-imdbpy,
          libgles2-mesa-dev [armhf],
          libegl1-mesa-dev [armhf],
+         python3-streamlink,
+         streamlink,
+         libvlc-qt-qml2,
+         qml-module-qtav,
 Recommends: libmythtv-perl, python-imaging | python-pil, udisks2 | udisks
 Suggests: mythtv-backend, mythmusic, mythweather, mythgallery, mythgame, ntp | time-daemon | ntp-simple
 Conflicts: mythtv (<< 0.8-1), mythappearance (<< 0.21.0), mythstream (<< 0.21.0), mythflix (<< 0.23.0)
