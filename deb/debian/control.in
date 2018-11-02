@@ -297,7 +297,6 @@ Depends: mythtv-common,
          libegl1-mesa-dev [armhf],
          python3-streamlink,
          streamlink,
-         libvlc-qt-qml2,
          qml-module-qtav,
 Recommends: libmythtv-perl, python-imaging | python-pil, udisks2 | udisks
 Suggests: mythtv-backend, mythmusic, mythweather, mythgallery, mythgame, ntp | time-daemon | ntp-simple
