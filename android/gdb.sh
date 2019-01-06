@@ -80,7 +80,7 @@ DATA_DIR=$(echo "$DATA_DIR" | sed 's/\r$//')
 DEVICE_GDBSERVER=$DATA_DIR/gdbserver
 DEBUG_SOCKET=$DATA_DIR/debug-socket
 
-rc=$(adb shell sh -c "test -e $DEVICE_GDBSERVER ; echo $?")
+rc=$(adb shell sh -c 'test -e $DEVICE_GDBSERVER ; echo $?')
 if [[ "$rc" != 0 ]] ; then
 	#adb shell mkdir -p $(dirname $DEVICE_GDBSERVER)
 	adb push ${ANDROID_NDK_ROOT}/prebuilt/android-${TARGET_ARCH}/gdbserver/gdbserver $TMPDIR
@@ -88,7 +88,7 @@ if [[ "$rc" != 0 ]] ; then
 	adb shell run-as $PACKAGE_NAME chmod a+x $DEVICE_GDBSERVER
 fi
 
-rc=$(adb shell sh -c "test -e /system/bin/$APP_PROCESS_NAME ; echo $?")
+rc=$(adb shell sh -c "test -e /system/bin/$APP_PROCESS_NAME ; "'echo $?')
 if [[ $rc != 0 ]] ; then
 	APP_PROCESS_NAME=app_process
 fi
