@@ -158,11 +158,6 @@ Depends: adduser,
          libxml-xpath-perl,
          pciutils,
          usbutils,
-         qml-module-qtwebengine,
-         qml-module-qtwebsockets,
-         python3-streamlink,
-         streamlink,
-         qml-module-qtav,
          python-future,
          python-requests,
          python-requests-cache,
@@ -294,10 +289,7 @@ Depends: mythtv-common,
          python,
          python-imdbpy,
          libgles2-mesa-dev [armhf],
-         libegl1-mesa-dev [armhf],
-         python3-streamlink,
-         streamlink,
-         qml-module-qtav,
+         libegl1-mesa-dev [armhf]
 Recommends: libmythtv-perl, python-imaging | python-pil, udisks2 | udisks
 Suggests: mythtv-backend, mythmusic, mythweather, mythgame, ntp | time-daemon | ntp-simple
 Conflicts: mythtv (<< 0.8-1), mythappearance (<< 0.21.0), mythstream (<< 0.21.0), mythflix (<< 0.23.0)
@@ -308,6 +300,32 @@ Description: Personal video recorder application (client)
  television programs. Refer to the mythtv package for more information.
  .
  This package contains only the client software, which provides a front-end
+ for playback and configuration. It requires access to a mythtv-backend
+ installation, either on the same system or one reachable via the network.
+ .
+ A database is also required. The mythtv-database package must be installed,
+ either on the same system, or one reachable via the network.
+ .
+ For a complete installation of all MythTV components, install the 'mythtv'
+ package.
+
+Package: mythtv-frontend-qml
+Architecture: any
+Depends: mythtv-common,
+         python,
+         python3-streamlink,
+         streamlink,
+         qml-module-qtav,
+         qml-module-qtwebengine,
+         qml-module-qtwebsockets,
+         python3-streamlink,
+         streamlink,
+         qml-module-qtav
+Description: Personal video recorder application (QML client)
+ MythTV provides a unified graphical interface for recording and viewing
+ television programs. Refer to the mythtv package for more information.
+ .
+ This package contains only the QML client software, which provides a front-end
  for playback and configuration. It requires access to a mythtv-backend
  installation, either on the same system or one reachable via the network.
  .

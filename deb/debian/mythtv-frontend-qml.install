@@ -1,0 +1,6 @@
+#Come from make install
+usr/bin/mythfrontend_qml
+usr/lib/x86_64-linux-gnu/vlc/plugins/libaccess_myth_plugin.so
+usr/share/mythtv/qml
+
+#Stuff we add from debian/
