@@ -1,4 +1,4 @@
-mythtv (2:30.0~master-0ubuntu1) bionic; urgency=medium
+mythtv (2:31.0~master-autobuild) bionic; urgency=medium
 
   * First public build of new qml frontend
 
