@@ -59,7 +59,7 @@ while : ; do
 			;;
 		ass)
 			shift
-			#BUILD_FONTCONFIG=1
+			BUILD_FONTCONFIG=1
 			BUILD_FRIBIDI=1
 			BUILD_ASS=1
 			;;
@@ -145,7 +145,7 @@ while : ; do
 			BUILD_VORBIS=1
 			BUILD_OGG=1
 			BUILD_FRIBIDI=1
-			#BUILD_FONTCONFIG=1
+			BUILD_FONTCONFIG=1
 			BUILD_ASS=1
 			BUILD_LIBXML2=1
 			#BUILD_LIBXSLT=1
@@ -212,8 +212,8 @@ while : ; do
 	esac
 done
 
-QTMAJORVERSION=5.10
-QTVERSION=$QTMAJORVERSION.1
+QTMAJORVERSION=5.11
+QTVERSION=$QTMAJORVERSION.3
 export ANDROID_NATIVE_API_LEVEL=${ANDROID_NATIVE_API_LEVEL:-21}
 export ANDROID_SDK_PLATFORM=android-$ANDROID_NATIVE_API_LEVEL
 export ANDROID_NDK_PLATFORM=android-$ANDROID_NATIVE_API_LEVEL
@@ -534,7 +534,7 @@ STRIP=${CROSSPATH2}strip \
 	CFLAGS="--sysroot=$SYSROOT $ANDROID_API_DEF" \
 	CPP=${CROSSPATH2}cpp \
 	CPPFLAGS=$CFLAGS \
-	./configure --build=x86_64 --host=$BUILD_HOST --prefix=$INSTALLROOT --with-sysroot=$SYSROOT --enable-shared=no --enable-static=yes &&
+	./configure --build=x86_64 --host=$BUILD_HOST --prefix=$INSTALLROOT --with-sysroot=$SYSROOT --enable-shared=yes --enable-static=yes &&
 	make $MAKEDEFS install-lib
 	ERR=$?
 PATH=$OPATH
@@ -1006,7 +1006,7 @@ CPP="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--without-crypto \
 	--disable-libmount \
 	--with-pcre=no \
-	--disable-shared \
+	--enable-shared \
 	--enable-static &&
 	make -j$NCPUS &&
 	make install
@@ -1118,7 +1118,7 @@ CPP="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--disable-curses \
 	--disable-csharp \
 	--disable-nls \
-	--disable-shared \
+	--enable-shared \
 	--enable-static \
 	&&
 	make -j$NCPUS &&
@@ -1186,8 +1186,32 @@ setup_lib https://github.com/freedesktop/fontconfig/archive/$FONTCONFIG_VERSION.
 pushd $FONTCONFIG
 OPATH=$PATH
 
+{ patch -p1 -Nt || true; } <<'END'
+diff --git a/src/fcobjs.c b/src/fcobjs.c
+index 16ff31c..d8bf79d 100644
+--- a/src/fcobjs.c
++++ b/src/fcobjs.c
+@@ -25,10 +25,10 @@
+ #include "fcint.h"
+ 
+ static unsigned int
+-FcObjectTypeHash (register const char *str, register unsigned int len);
++FcObjectTypeHash (register const char *str, register size_t len);
+ 
+ static const struct FcObjectTypeInfo *
+-FcObjectTypeLookup (register const char *str, register unsigned int len);
++FcObjectTypeLookup (register const char *str, register size_t len);
+ 
+ #include "fcobjshash.h"
+ 
+END
 if [ $CLEAN == 1 ]; then
+	# move generated fcblanks.h aside before clean
+	# so unicode.org does not have to be spammed
+	# as it looks like it has a DOS filter
+	mv fc-blanks/fcblanks.h{,.1} || true
 	make distclean || true
+	mv fc-blanks/fcblanks.h{.1,} || true
 fi
 
 #local CPUOPT=
@@ -1200,7 +1224,7 @@ fi
 PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-LDFLAGS="-L$INSTALLROOT/lib" \
+LDFLAGS="-L$INSTALLROOT/lib -Wl,-rpath-link=$SYSROOT/usr/lib -Wl,-rpath-link=$INSTALLROOT/lib" \
 RANLIB=${CROSSPATH2}ranlib \
 OBJDUMP=${CROSSPATH2}objdump \
 AR=${CROSSPATH2}ar \
@@ -1212,10 +1236,11 @@ CPP="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--build=x86_64-linux-gnu \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
-	--with-sysroot=$SYSROOT \
+	--with-gnu-ld=yes \
+	--disable-docs \
 	--disable-dependency-tracking \
 	--enable-libxml2 \
-	--disable-shared \
+	--enable-shared \
 	--enable-static &&
 	make -j$NCPUS &&
 	make install
@@ -1267,7 +1292,7 @@ CPP="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--without-crypto \
 	--disable-libmount \
 	--with-pcre=no \
-	--disable-shared \
+	--enable-shared \
 	--enable-static &&
 	make -j$NCPUS &&
 	make install
@@ -1317,7 +1342,7 @@ CPP="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--with-sysroot=$SYSROOT \
 	--disable-dependency-tracking \
 	--disable-require-system-font-provider \
-	--disable-shared \
+	--enable-shared \
 	--enable-static &&
 	make -j$NCPUS &&
 	make install
@@ -1377,6 +1402,36 @@ OPATH=$PATH
 ICUPATH=$PWD
 ICU_FLAGS="-I$ICU_PATH/source/common/ -I$ICU_PATH/source/tools/tzcode/"
 { patch -p1 -Nt || true; } <<'END'
+diff --git a/source/config/mh-linux b/source/config/mh-linux
+index 53d6780..c8ed9f8 100644
+--- a/source/config/mh-linux
++++ b/source/config/mh-linux
+@@ -39,6 +39,10 @@ SO = so
+ ## Non-shared intermediate object suffix
+ STATIC_O = ao
+ 
++## Versioned target for a shared library.
++FINAL_SO_TARGET=  $(basename $(SO_TARGET))$(SO_TARGET_VERSION).$(SO)
++MIDDLE_SO_TARGET= $(basename $(SO_TARGET))$(SO_TARGET_VERSION_MAJOR).$(SO)
++
+ ## Compilation rules
+ %.$(STATIC_O): $(srcdir)/%.c
+ 	$(call SILENT_COMPILE,$(strip $(COMPILE.c) $(STATICCPPFLAGS) $(STATICCFLAGS)) -o $@ $<)
+@@ -66,10 +70,10 @@ STATIC_O = ao
+ 
+ ## Versioned libraries rules
+ 
+-%.$(SO).$(SO_TARGET_VERSION_MAJOR): %.$(SO).$(SO_TARGET_VERSION)
+-	$(RM) $@ && ln -s ${<F} $@
+-%.$(SO): %.$(SO).$(SO_TARGET_VERSION_MAJOR)
+-	$(RM) $@ && ln -s ${*F}.$(SO).$(SO_TARGET_VERSION) $@
++%$(SO_TARGET_VERSION_MAJOR).$(SO): %$(SO_TARGET_VERSION).$(SO)
++	$(RM) $@ && ln -s ${*F}$(SO_TARGET_VERSION).$(SO) $@
++%.$(SO): %$(SO_TARGET_VERSION).$(SO)
++	$(RM) $@ && ln -s ${*F}$(SO_TARGET_VERSION).$(SO) $@
+ 
+ ##  Bind internal references
+ 
 diff --git a/source/configure b/source/configure
 index 36c06f9..aff20fe 100755
 --- a/source/configure
@@ -1444,7 +1499,7 @@ touch config/icucross.inc
 	--disable-tools \
 	--disable-tests \
 	--disable-samples \
-	--disable-shared \
+	--enable-shared \
 	--enable-static
 ERR=$?
 
@@ -1676,7 +1731,116 @@ else
 	rm qtwebkit || true
 fi
 
-if [ ${QTMAJORVERSION%.*} -ge 6 -o ${QTMAJORVERSION#*.} -gt 9 ]; then
+if [ ${QTVERSION} == "5.11.3" -o ${QTVERSION} == "5.12.0" ]; then
+echo  5.11.3 patch is different enough to warrant its own section
+{ patch -p1 -Nt --no-backup-if-mismatch -r - || true; } <<'END'
+diff --git a/qtbase/mkspecs/common/android-base-head.conf b/qtbase/mkspecs/common/android-base-head.conf
+index 9be6111..ebd3982 100644
+--- a/qtbase/mkspecs/common/android-base-head.conf
++++ b/qtbase/mkspecs/common/android-base-head.conf
+@@ -49,8 +49,9 @@ else: ANDROID_ARCHITECTURE = arm
+ 
+ !equals(NDK_TOOLCHAIN_VERSION, 4.4.3): ANDROID_CXXSTL_SUFFIX = -$$NDK_TOOLCHAIN_VERSION
+ 
++NDK_TOOLCHAIN_PATH = $$(ANDROID_NDK_TOOLCHAIN_PATH)
+ NDK_TOOLCHAIN = $$NDK_TOOLCHAIN_PREFIX-$$NDK_TOOLCHAIN_VERSION
+-NDK_TOOLCHAIN_PATH = $$NDK_ROOT/toolchains/$$NDK_TOOLCHAIN/prebuilt/$$NDK_HOST
++isEmpty(NDK_TOOLCHAIN_PATH): NDK_TOOLCHAIN_PATH = $$NDK_ROOT/toolchains/$$NDK_TOOLCHAIN/prebuilt/$$NDK_HOST
+ 
+ 
+ ANDROID_SDK_ROOT = $$(ANDROID_SDK_ROOT)
+@@ -68,7 +69,8 @@ isEmpty(ANDROID_SDK_BUILD_TOOLS_REVISION) {
+ CONFIG += $$ANDROID_PLATFORM
+ QMAKE_CFLAGS = -D__ANDROID_API__=$$replace(ANDROID_PLATFORM, "android-", "")
+ 
+-ANDROID_PLATFORM_ROOT_PATH  = $$NDK_ROOT/platforms/$$ANDROID_PLATFORM/arch-$$ANDROID_ARCHITECTURE/
++ANDROID_PLATFORM_ROOT_PATH = $$(ANDROID_NDK_PLATFORM_ROOT_PATH)
++isEmpty(ANDROID_PLATFORM_ROOT_PATH): ANDROID_PLATFORM_ROOT_PATH  = $$NDK_ROOT/platforms/$$ANDROID_PLATFORM/arch-$$ANDROID_ARCHITECTURE/
+ ANDROID_PLATFORM_PATH  = $$ANDROID_PLATFORM_ROOT_PATH/usr
+ 
+ equals(ANDROID_TARGET_ARCH, x86_64)|equals(ANDROID_TARGET_ARCH, mips64): \
+diff --git a/qtbase/mkspecs/features/android/android.prf b/qtbase/mkspecs/features/android/android.prf
+index 1dc8f87..e796f4a 100644
+--- a/qtbase/mkspecs/features/android/android.prf
++++ b/qtbase/mkspecs/features/android/android.prf
+@@ -4,11 +4,21 @@ contains(TEMPLATE, ".*app") {
+         QMAKE_LFLAGS += -Wl,-soname,$$shell_quote($$TARGET)
+ 
+         android_install {
+-            target.path=/libs/$$ANDROID_TARGET_ARCH/
++            ANDROID_INSTALL_LIBS = $$(ANDROID_INSTALL_LIBS)
++            isEmpty(ANDROID_INSTALL_LIBS) {
++                target.path=/libs/$$ANDROID_TARGET_ARCH/
++            } else {
++                target.path=$$ANDROID_INSTALL_LIBS/
++            }
+             INSTALLS *= target
+         }
+     }
+ } else: contains(TEMPLATE, "lib"):!static:!QTDIR_build:android_install {
+-    target.path = /libs/$$ANDROID_TARGET_ARCH/
++    ANDROID_INSTALL_LIBS = $$(ANDROID_INSTALL_LIBS)
++    isEmpty(ANDROID_INSTALL_LIBS) {
++        target.path=/libs/$$ANDROID_TARGET_ARCH/
++    } else {
++        target.path=$$ANDROID_INSTALL_LIBS/
++    }
+     INSTALLS *= target
+ }
+diff --git a/qtbase/src/android/templates/build.gradle b/qtbase/src/android/templates/build.gradle
+index 3a3e0cd..f98eed7 100644
+--- a/qtbase/src/android/templates/build.gradle
++++ b/qtbase/src/android/templates/build.gradle
+@@ -41,9 +41,12 @@ android {
+     sourceSets {
+         main {
+             manifest.srcFile 'AndroidManifest.xml'
+-            java.srcDirs = [qt5AndroidDir + '/src', 'src', 'java']
+-            aidl.srcDirs = [qt5AndroidDir + '/src', 'src', 'aidl']
+-            res.srcDirs = [qt5AndroidDir + '/res', 'res']
++            //java.srcDirs = [qt5AndroidDir + '/src', 'src', 'java']
++            java.srcDirs = ['src', 'java']
++            //aidl.srcDirs = [qt5AndroidDir + '/src', 'src', 'aidl']
++            aidl.srcDirs = ['src', 'aidl']
++            //res.srcDirs = [qt5AndroidDir + '/res', 'res']
++            res.srcDirs = ['res']
+             resources.srcDirs = ['src']
+             renderscript.srcDirs = ['src']
+             assets.srcDirs = ['assets']
+diff --git a/qtbase/src/tools/androiddeployqt/main.cpp b/qtbase/src/tools/androiddeployqt/main.cpp
+index 918bc0f..d6bbf8a 100644
+--- a/qtbase/src/tools/androiddeployqt/main.cpp
++++ b/qtbase/src/tools/androiddeployqt/main.cpp
+@@ -984,8 +984,8 @@ bool copyAndroidTemplate(const Options &options)
+     if (!copyAndroidTemplate(options, QLatin1String("/src/android/templates")))
+         return false;
+ 
+-    if (options.gradle)
+-        return true;
++    //if (options.gradle)
++    //    return true;
+ 
+     return copyAndroidTemplate(options, QLatin1String("/src/android/java"));
+ }
+diff --git a/qtbase/src/3rdparty/forkfd/forkfd.c b/qtbase/src/3rdparty/forkfd/forkfd.c
+index 7f02ee9..74de1a7 100644
+--- a/qtbase/src/3rdparty/forkfd/forkfd.c
++++ b/qtbase/src/3rdparty/forkfd/forkfd.c
+@@ -45,8 +45,10 @@
+ #include <time.h>
+ #include <unistd.h>
+ 
+-#ifdef __linux__
+-#  define HAVE_WAIT4    1
++#if defined(__linux__)
++#  if __ANDROID_API__ > 19
++#    define HAVE_WAIT4    1
++#  endif
+ #  if defined(__BIONIC__) || (defined(__GLIBC__) && (__GLIBC__ << 8) + __GLIBC_MINOR__ >= 0x208 && \
+        (!defined(__UCLIBC__) || ((__UCLIBC_MAJOR__ << 16) + (__UCLIBC_MINOR__ << 8) + __UCLIBC_SUBLEVEL__ > 0x90201)))
+ #    include <sys/eventfd.h>
+END
+elif [ ${QTMAJORVERSION%.*} -ge 6 -o ${QTMAJORVERSION#*.} -gt 9 ]; then
 # 5.10 patch is different enough to warrant its own section
 { patch -p1 -Nt --no-backup-if-mismatch -r - || true; } <<'END'
 diff --git a/qtbase/mkspecs/common/android-base-head.conf b/qtbase/mkspecs/common/android-base-head.conf
@@ -1784,6 +1948,134 @@ index 7f02ee9..74de1a7 100644
  #  if defined(__BIONIC__) || (defined(__GLIBC__) && (__GLIBC__ << 8) + __GLIBC_MINOR__ >= 0x208 && \
         (!defined(__UCLIBC__) || ((__UCLIBC_MAJOR__ << 16) + (__UCLIBC_MINOR__ << 8) + __UCLIBC_SUBLEVEL__ > 0x90201)))
  #    include <sys/eventfd.h>
+END
+
+{ patch -p1 -Nt --no-backup-if-mismatch -r - || true; } <<'END'
+commit b7887f9b4faad2227691a2af589e9d7680d6ae08
+Author: Thiago Macieira <thiago.macieira@intel.com>
+Date:   Wed Sep 19 00:05:54 2018 -0500
+
+    Linux: Remove our use of syscall() for statx(2) and renameat2(2)
+    
+    Those system calls are present in glibc 2.28. Instead of using
+    syscall(3) to place the system calls directly, let's use only the glibc
+    functions. That also means we no longer accept ENOSYS from either
+    function, if they were detected in glibc.
+    
+    Change-Id: I44e7d800c68141bdaae0fffd1555b4b8fe63786b
+    Reviewed-by: Oswald Buddenhagen <oswald.buddenhagen@qt.io>
+    Reviewed-by: Lars Knoll <lars.knoll@qt.io>
+    Reviewed-by: Jüri Valdmann <juri.valdmann@qt.io>
+
+diff --git a/src/corelib/global/minimum-linux_p.h b/src/corelib/global/minimum-linux_p.h
+index bad2488b4d..9c074e13ba 100644
+--- a/qtbase/src/corelib/global/minimum-linux_p.h
++++ b/qtbase/src/corelib/global/minimum-linux_p.h
+@@ -75,9 +75,14 @@ QT_BEGIN_NAMESPACE
+  * - accept4                    2.6.28
+  * - renameat2                  3.16                    QT_CONFIG(renameat2)
+  * - getrandom                  3.17                    QT_CONFIG(getentropy)
++ * - statx                      4.11                    QT_CONFIG(statx)
+  */
+ 
+-#if QT_CONFIG(getentropy)
++#if QT_CONFIG(statx)
++#  define MINLINUX_MAJOR        4
++#  define MINLINUX_MINOR        11
++#  define MINLINUX_PATCH        0
++#elif QT_CONFIG(getentropy)
+ #  define MINLINUX_MAJOR        3
+ #  define MINLINUX_MINOR        17
+ #  define MINLINUX_PATCH        0
+diff --git a/src/corelib/io/qfilesystemengine_unix.cpp b/src/corelib/io/qfilesystemengine_unix.cpp
+index deb4a9f220..40e8f82a80 100644
+--- a/qtbase/src/corelib/io/qfilesystemengine_unix.cpp
++++ b/qtbase/src/corelib/io/qfilesystemengine_unix.cpp
+@@ -1,6 +1,6 @@
+ /****************************************************************************
+ **
+-** Copyright (C) 2017 Intel Corporation.
++** Copyright (C) 2018 Intel Corporation.
+ ** Copyright (C) 2016 The Qt Company Ltd.
+ ** Copyright (C) 2013 Samuel Gaist <samuel.gaist@edeltech.ch>
+ ** Contact: https://www.qt.io/licensing/
+@@ -88,7 +88,6 @@ extern "C" NSString *NSTemporaryDirectory();
+ 
+ #if defined(Q_OS_LINUX)
+ #  include <sys/ioctl.h>
+-#  include <sys/syscall.h>
+ #  include <sys/sendfile.h>
+ #  include <linux/fs.h>
+ 
+@@ -96,28 +95,6 @@ extern "C" NSString *NSTemporaryDirectory();
+ #ifndef FICLONE
+ #  define FICLONE       _IOW(0x94, 9, int)
+ #endif
+-
+-#  if defined(Q_OS_ANDROID)
+-// renameat2() and statx() are disabled on Android because quite a few systems
+-// come with sandboxes that kill applications that make system calls outside a
+-// whitelist and several Android vendors can't be bothered to update the list.
+-#    undef SYS_renameat2
+-#    undef SYS_statx
+-#    undef STATX_BASIC_STATS
+-#  else
+-#    if !QT_CONFIG(renameat2) && defined(SYS_renameat2)
+-static int renameat2(int oldfd, const char *oldpath, int newfd, const char *newpath, unsigned flags)
+-{ return syscall(SYS_renameat2, oldfd, oldpath, newfd, newpath, flags); }
+-#    endif
+-
+-#    if !QT_CONFIG(statx) && defined(SYS_statx)
+-#      include <linux/stat.h>
+-static int statx(int dirfd, const char *pathname, int flag, unsigned mask, struct statx *statxbuf)
+-{ return syscall(SYS_statx, dirfd, pathname, flag, mask, statxbuf); }
+-#    elif !QT_CONFIG(statx) && !defined(SYS_statx)
+-#      undef STATX_BASIC_STATS
+-#    endif
+-#  endif // !Q_OS_ANDROID
+ #endif
+ 
+ #ifndef STATX_ALL
+@@ -331,22 +308,8 @@ mtime(const T &statBuffer, int)
+ #ifdef STATX_BASIC_STATS
+ static int qt_real_statx(int fd, const char *pathname, int flags, struct statx *statxBuffer)
+ {
+-#ifdef Q_ATOMIC_INT8_IS_SUPPORTED
+-    static QBasicAtomicInteger<qint8> statxTested  = Q_BASIC_ATOMIC_INITIALIZER(0);
+-#else
+-    static QBasicAtomicInt statxTested = Q_BASIC_ATOMIC_INITIALIZER(0);
+-#endif
+-
+-    if (statxTested.load() == -1)
+-        return -ENOSYS;
+-
+     unsigned mask = STATX_BASIC_STATS | STATX_BTIME;
+     int ret = statx(fd, pathname, flags, mask, statxBuffer);
+-    if (ret == -1 && errno == ENOSYS) {
+-        statxTested.store(-1);
+-        return -ENOSYS;
+-    }
+-    statxTested.store(1);
+     return ret == -1 ? -errno : 0;
+ }
+ 
+@@ -1282,14 +1245,12 @@ bool QFileSystemEngine::renameFile(const QFileSystemEntry &source, const QFileSy
+     if (Q_UNLIKELY(srcPath.isEmpty() || tgtPath.isEmpty()))
+         return emptyFileEntryWarning(), false;
+ 
+-#if defined(RENAME_NOREPLACE) && (QT_CONFIG(renameat2) || defined(SYS_renameat2))
++#if defined(RENAME_NOREPLACE) && QT_CONFIG(renameat2)
+     if (renameat2(AT_FDCWD, srcPath, AT_FDCWD, tgtPath, RENAME_NOREPLACE) == 0)
+         return true;
+ 
+-    // If we're using syscall(), check for ENOSYS;
+-    // if renameat2 came from libc, we don't accept ENOSYS.
+     // We can also get EINVAL for some non-local filesystems.
+-    if ((QT_CONFIG(renameat2) || errno != ENOSYS) && errno != EINVAL) {
++    if (errno != EINVAL) {
+         error = QSystemError(errno, QSystemError::StandardLibraryError);
+         return false;
+     }
 END
 else
 # note: no !static: in 5.7.0
@@ -1981,7 +2273,8 @@ if [ $QTVERSION_WK != $QTVERSION ]; then
 	echo "include/QtWebKitWidgets/qtwebkitwidgetsversion.h"
 	sed -i 's/\(#define QTWEBKITWIDGETS_VERSION_STR "\)[^"]*\("\)/\1'"$QTVERSION\2/; s/\(#define QTWEBKITWIDGETS_VERSION 0x\).*$/\1$QTWK_MACHVER/;" include/QtWebKitWidgets/qtwebkitwidgetsversion.h
 	echo ".qmake.conf"
-	sed -i 's/\(#define MODULE_VERSION "\).*$/\1'"$QTVERSION/;" .qmake.conf
+	#MODULE_VERSION = 5.9.1
+	sed -i 's/\(MODULE_VERSION = \).*$/\1'"$QTVERSION/;" .qmake.conf
 fi
 
 popd
@@ -2165,9 +2458,13 @@ build_qt5() {
 	make -j$NCPUS $THINGS_TO_MAKE || ERR=$?
 	#make -j$NCPUS module-qtscript-install_subtargets
 	#make -j$NCPUS module-qtandroidextras-install_subtargets
+	echo "Build Completed build_qt5 $ERR"
 	[ $ERR == 0 ] && \
 	make -j$NCPUS install \
 	|| ERR=$?
+	if [ $ERR -eq 2 ]; then
+		ERR=0
+	fi
 	#make -j$NCPUS module-qtwebengine-install_subtargets
 	true
 	#make -C qtwebkit/Source -f Makefile.api INSTALL_ROOT="$INSTALLROOT" install &&
@@ -2185,6 +2482,7 @@ build_qt5() {
 	PATH=$OPATH
 	unset OPATH
 	popd
+	echo "All Completed build_qt5 $ERR"
 	return $ERR
 }
 
