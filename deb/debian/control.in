@@ -95,12 +95,8 @@ Build-Depends:  debhelper (>= 9),
                 dh-systemd,
                 libraspberrypi-dev [armhf] | hello,
                 libqt5webenginecore5,
-                qml-module-qtwebengine,
                 qtwebengine5-dev,
-                qml-module-qtpositioning,
                 qtpositioning5-dev,
-                libvlccore-dev,
-                libvlc-dev,
                 libbluray-dev,
                 liblzo2-dev,
                 libxnvctrl-dev,
@@ -300,32 +296,6 @@ Description: Personal video recorder application (client)
  television programs. Refer to the mythtv package for more information.
  .
  This package contains only the client software, which provides a front-end
- for playback and configuration. It requires access to a mythtv-backend
- installation, either on the same system or one reachable via the network.
- .
- A database is also required. The mythtv-database package must be installed,
- either on the same system, or one reachable via the network.
- .
- For a complete installation of all MythTV components, install the 'mythtv'
- package.
-
-Package: mythtv-frontend-qml
-Architecture: any
-Depends: mythtv-common,
-         python,
-         python3-streamlink,
-         streamlink,
-         qml-module-qtav,
-         qml-module-qtwebengine,
-         qml-module-qtwebsockets,
-         python3-streamlink,
-         streamlink,
-         qml-module-qtav
-Description: Personal video recorder application (QML client)
- MythTV provides a unified graphical interface for recording and viewing
- television programs. Refer to the mythtv package for more information.
- .
- This package contains only the QML client software, which provides a front-end
  for playback and configuration. It requires access to a mythtv-backend
  installation, either on the same system or one reachable via the network.
  .

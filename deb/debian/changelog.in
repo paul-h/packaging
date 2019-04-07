@@ -1,5 +1,11 @@
 mythtv (2:31.0~master) bionic; urgency=medium
 
+  * Move qml frontend to separate build/repo
+
+ -- Paul Harrison <pharrison@mythtv.org>  Sun, 07 Apr 2019 22:33:00 +0000
+
+mythtv (2:31.0~master) bionic; urgency=medium
+
   * First public build of new qml frontend
 
  -- Paul Harrison <pharrison@mythtv.org>  Wed, 06 Jan 2019 12:55:00 +0000
