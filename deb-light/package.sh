@@ -3,6 +3,26 @@ scriptname=`readlink -e "$0"`
 scriptpath=`dirname "$scriptname"`
 set -e
 
+#options
+
+strip=
+while (( "$#" >= 1 )) ; do
+    case $1 in
+        --nostrip)
+            strip="_nostrip"
+            ;;
+        --strip)
+            strip=
+            ;;
+        *)
+            echo "Error invalid option $1"
+            echo valid options: --strip --nostrip
+            exit 2
+            ;;
+    esac
+    shift||rc=$?
+done
+
 gitbasedir=`git rev-parse --show-toplevel`
 
 # This will get projname and destdir
@@ -61,7 +81,7 @@ if [[ "$packagebranch" != master && "$packagebranch" != fixes* ]] ; then
 fi
 case $projname in
     mythtv)
-        packagename=mythtv-light_${source}${packagerel}_${arch}_$codename
+        packagename=mythtv-light_${source}${packagerel}_${arch}_$codename$strip
         echo Package $packagename
         if [[ -f $installdir/$packagename.deb || -d $installdir/$packagename ]] ; then
             echo $installdir/$packagename already exists - incrementing SUBRELEASE number
@@ -82,8 +102,10 @@ case $projname in
             fi
         fi
         mkdir -p $installdir/$packagename/DEBIAN
-        strip -g `find $installdir/$packagename/usr/bin/ -type f -executable`
-        strip -g `find $installdir/$packagename/usr/lib/ -type f -executable -name '*.so*'`
+        if [[ "$strip" != "_nostrip" ]] ; then
+            strip -g `find $installdir/$packagename/usr/bin/ -type f -executable`
+            strip -g `find $installdir/$packagename/usr/lib/ -type f -executable -name '*.so*'`
+        fi
         deps="libtag1v5, libexiv2-14, python-future, python-requests, python-requests-cache, "
         if [[ "$codename" == jessie ]] ; then
             deps="libtag1c2a, libexiv2-13, "
@@ -97,7 +119,7 @@ Architecture: $arch
 Essential: no
 Installed-Size: `du -B1024 -d0 $installdir/$packagename | cut  -f1`
 Maintainer: Peter Bennett <pbennett@mythtv.org>
-Depends: $deps libavahi-compat-libdnssd1, libqt5widgets5, libqt5script5, libqt5sql5-mysql, libqt5xml5, libqt5network5, libqt5webkit5, pciutils, libva-x11-1 | libva-x11-2, libva-glx1 | libva-glx2, libqt5opengl5, libdbi-perl,  libdbd-mysql-perl, libnet-upnp-perl, python-lxml, python-mysqldb, python-urlgrabber, libcec3 | libcec4, libfftw3-double3, libfftw3-single3, libass5 | libass9, libfftw3-3, libraw1394-11, libiec61883-0, libavc1394-0, fonts-liberation, libva-drm1 | libva-drm2, libmp3lame0, libxv1, libpulse0, libhdhomerun3 | libhdhomerun4, libxnvctrl0, libsamplerate0, libbluray1 | libbluray2, liblzo2-2
+Depends: $deps libavahi-compat-libdnssd1, libqt5widgets5, libqt5script5, libqt5sql5-mysql, libqt5xml5, libqt5network5, libqt5webkit5, pciutils, libva-x11-1 | libva-x11-2, libva-glx1 | libva-glx2, libqt5opengl5, libdbi-perl,  libdbd-mysql-perl, libnet-upnp-perl, python-lxml, python-mysqldb, python-urlgrabber, libcec3 | libcec4, libfftw3-double3, libfftw3-single3, libass5 | libass9, libfftw3-3, libraw1394-11, libiec61883-0, libavc1394-0, fonts-liberation, libva-drm1 | libva-drm2, libmp3lame0, libxv1, libpulse0, libhdhomerun3 | libhdhomerun4, libxnvctrl0, libsamplerate0, libbluray1 | libbluray2, liblzo2-2, libio-socket-inet6-perl
 Conflicts: mythtv-common, mythtv-frontend, mythtv-backend
 Homepage: http://www.mythtv.org
 Description: MythTV Light
@@ -148,8 +170,8 @@ FINISH
         ls -ld ${packagename}*
         ;;
     mythplugins)
-        mythtvpackagename=mythtv-light_${source}${packagerel}_${arch}_$codename
-        packagename=mythplugins-light_${source}${packagerel}_${arch}_$codename
+        mythtvpackagename=mythtv-light_${source}${packagerel}_${arch}_$codename$strip
+        packagename=mythplugins-light_${source}${packagerel}_${arch}_$codename$strip
         echo Package $packagename
         if [[ -f $installdir/$packagename.deb ]] ; then
             echo $installdir/$packagename already exists - incrementing SUBRELEASE number
@@ -172,8 +194,10 @@ FINISH
             find . -type d -empty -print0 | xargs -0 rmdir -v || rc=$?
         done
         mkdir -p $installdir/$packagename/DEBIAN
-        strip -g -v `find $installdir/$packagename/usr/bin/ -type f -executable`
-        strip -g -v `find $installdir/$packagename/usr/lib/ -type f -executable`
+        if [[ "$strip" != "_nostrip" ]] ; then
+            strip -g -v `find $installdir/$packagename/usr/bin/ -type f -executable`
+            strip -g -v `find $installdir/$packagename/usr/lib/ -type f -executable`
+        fi
         cat >$installdir/$packagename/DEBIAN/control <<FINISH
 Package: mythplugins-light
 Version: $packagerel
@@ -183,7 +207,7 @@ Architecture: $arch
 Essential: no
 Installed-Size: `du -B1024 -d0 $installdir/$packagename | cut  -f1`
 Maintainer: Peter Bennett <pbennett@mythtv.org>
-Depends: mythtv-light, python, perl, libimage-size-perl, perlmagick, libxml-parser-perl, libxml-sax-perl, libcarp-clan-perl, libsoap-lite-perl, libdate-manip-perl, libdate-calc-perl, libwww-perl, libxml-simple-perl, libdatetime-format-iso8601-perl, libjson-perl, libxml-xpath-perl, mjpegtools, dvdauthor, genisoimage, dvd+rw-tools, python, python-imaging, python-mysqldb, pmount, python-feedparser, python-pycurl
+Depends: mythtv-light, python, perl, libimage-size-perl, perlmagick, libxml-parser-perl, libxml-sax-perl, libcarp-clan-perl, libsoap-lite-perl, libdate-manip-perl, libdate-calc-perl, libwww-perl, libxml-simple-perl, libdatetime-format-iso8601-perl, libjson-perl, libxml-xpath-perl, mjpegtools, dvdauthor, genisoimage, dvd+rw-tools, python, python-imaging | python-pil, python-mysqldb, pmount, python-feedparser, python-pycurl
 Conflicts: mythtv-common, mythtv-frontend, mythtv-backend
 Homepage: http://www.mythtv.org
 Description: MythTV Plugins Light
