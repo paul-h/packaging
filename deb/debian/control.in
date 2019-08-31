@@ -462,15 +462,6 @@ Description: Weather add-on module for MythTV
  MythWeather displays current and forecast weather information within
  MythTV.
 
-Package: mythwmr928
-Architecture: any
-Depends: mythtv-frontend (>= ${binary:Version}),
-         ${shlibs:Depends},
-         ${misc:Depends}
-Description: Weather station add-on module for MythTV
- MythWmr928 displays weather data and graphs from an Oregan 928
- Weather Station within MythTV.
-
 Package: mythweb
 Architecture: all
 Depends: mythtv-common (>= ${binary:Version}),
