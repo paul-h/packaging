@@ -50,12 +50,12 @@ Build-Depends:  debhelper (>= 9),
                 libjson-perl,
                 libwww-perl,
                 dh-python | python-central,
-                python,
-                python-oauth,
-                python-lxml,
-                python-mysqldb,
-                python-pycurl,
-                python-urlgrabber,
+                python3,
+                python3-lxml,
+                python3-mysqldb,
+                python3-requests,
+                python3-simplejson,
+                python3-future,
                 libgl1-mesa-dev | xlibmesa-gl-dev | xlibmesa-dev | libgl-dev,
                 libdvdread-dev | libdvdread3-dev,
                 fftw-dev,
@@ -99,7 +99,11 @@ Build-Depends:  debhelper (>= 9),
                 qtpositioning5-dev,
                 libbluray-dev,
                 liblzo2-dev,
+<<<<<<< HEAD
                 libxnvctrl-dev,
+=======
+                libxcb-shm0-dev,
+>>>>>>> upstream/master
                 libhdhomerun-dev
 
 Package: mythtv
@@ -146,15 +150,24 @@ Depends: adduser,
          ttf-dejavu,
          fonts-tlwg-purisa,
          fonts-texgyre | tex-gyre,
-         python,
          libxml-xpath-perl,
          pciutils,
          usbutils,
+<<<<<<< HEAD
          python-future,
          python-requests,
          python-requests-cache,
          python-feedparser,
          ffmpeg,
+=======
+         python3,
+         python3-requests,
+         python3-requests-cache,
+         python3-simplejson,
+         python3-mysqldb,
+         python3-lxml,
+         python3-future,
+>>>>>>> upstream/master
          ${shlibs:Depends},
          ${misc:Depends}
 Suggests: mythtv-doc
@@ -235,7 +248,7 @@ Description: Personal video recorder application (database)
 
 Package: mythtv-backend
 Architecture: any
-Depends: mythtv-common, mythtv-transcode-utils, ${shlibs:Depends}, cron, wget, zenity | kdebase-bin, xterm, python, libjs-jquery, libxml-simple-perl, ${misc:Depends}
+Depends: mythtv-common, mythtv-transcode-utils, ${shlibs:Depends}, cron, wget, zenity | kdebase-bin, xterm, python3, libjs-jquery, libxml-simple-perl, ${misc:Depends}
 Conflicts: mythtv (<< 0.8-1)
 Replaces: mythtv (<< 0.8-1), mythtv-frontend (<= 0.20-0.4)
 Recommends: ntp | time-daemon | ntp-simple, logrotate, libmyth-python, libmythtv-perl, hdhomerun-config
@@ -278,11 +291,16 @@ Depends: mythtv-common,
          libxml-simple-perl,
          libwww-perl,
          libmyth-python,
-         python,
-         python-imdbpy | python3-imdbpy,
+         python3,
+         python3-imdbpy,
          libgles2-mesa-dev [armhf],
+<<<<<<< HEAD
          libegl1-mesa-dev [armhf]
 Recommends: libmythtv-perl, python-imaging | python-pil, udisks2 | udisks
+=======
+         libegl1-mesa-dev [armhf],
+Recommends: libmythtv-perl, python3-imaging | python3-pil, udisks2 | udisks
+>>>>>>> upstream/master
 Suggests: mythtv-backend, mythmusic, mythweather, mythgame, ntp | time-daemon | ntp-simple
 Conflicts: mythtv (<< 0.8-1), mythappearance (<< 0.21.0), mythstream (<< 0.21.0), mythflix (<< 0.23.0)
 Replaces: mythtv (<< 0.8-1),  mythappearance (<< 0.21.0), mythvideo
@@ -353,7 +371,16 @@ Description: Perl library to access some MythTV features
 Package: libmyth-python
 Architecture: all
 Section: libs
-Depends: ${python:Depends}, python, python-mysqldb, python-lxml, python-urlgrabber, ${misc:Depends}
+Depends: ${python3:Depends},
+         python3,
+         python3-mysqldb,
+         python3-lxml,
+         python3-requests,
+         python3-requests-cache,
+         python3-simplejson,
+         python3-future,
+         python3-systemd,
+         ${misc:Depends}
 Replaces: mythtv-common (<< 0.20.98 )
 Conflicts: mythtv-common (<< 0.20.98 )
 Description: Python library to access some MythTV features
@@ -488,9 +515,9 @@ Depends: mythtv-transcode-utils(>= ${binary:Version}),
          dvdauthor,
          genisoimage,
          dvd+rw-tools,
-         python,
-         python-imaging | python-pil,
-         python-mysqldb,
+         python3,
+         python3-imaging | python3-pil,
+         python3-mysqldb,
          pmount,
          ${shlibs:Depends},
          ${misc:Depends}

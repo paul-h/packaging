@@ -19,36 +19,60 @@ ARM64=1
 
 2. Get Android Studio, SDK and NDK.
    * Get Android Studio from https://developer.android.com/studio/index.html
-     and install it into ~/android/android-studio.
+     and install it. The default location is $HOME/Android. Install it in $HOME/android or else create a link from the default location:
+     
+```
+cd
+ln -s Android android
+```     
    * After Android Studio is installed, use it to install the Android SDK.
      * In Android Studio, choose Configure / SDK Manager.
-     * Install the desired SDK versions.  Lollipop, Marshmallow, Nougat and Oreo are
-       the likely choices right now.
-     * Install the desired SDK Tools.  CMake is the main one.
-   * For the NDK
-     * Get android-ndk-r13b-linux-x86_64.bin and install it in ~/android too.
-     * Symlink it as android-ndk -> android-ndk-r13b.
-     * android-ndk-16b currently does not work due to missing headers.
-   * if you want to build a release apk, you need to create a key.
-   * Copy android-utilities/* to ~/android
-      * cp android-utilities/setenv.sh ~/android
-   * Create a toolchain for the correct version.  See maketoolchain.sh for this.
-     SDK 21 is the default
-        * Run `maketoolchain.sh` in ~/android
+     * Install the desired SDK versions.  Install SDK 28 and 29.
+     * Install the desired SDK Tools. Select CMake, build tools and NDK (Side by Side). By clicking "Show package details" you can select a specific version. Currently we are using the latest versions, NDK 21, build-tools 29, SDK tools 26.
+   * Set up links as follows, using the version of ndk that was installed.
+   
+```
+cd $HOME/android
+ln -s Sdk android-sdk-linux
+ln -s Sdk/ndk/21.0.6113669 android-ndk
+```
+   * We no longer need to copy setenv.sh to ~/android
+   * We no longer need to create a toolchain.
+   * Create a file buildrc in the packaging/android directory for any desired overrides
+   * If you want to build a release apk, you need to create a key. After creating the key, add these to the end of buildrc:
 
+```
+export KEYSTORE=$HOME/.android/android-release-key.jks
+export KEYALIAS=<key alias>
+export KEYSTOREPASSWORD=<key password>
+```
+   * Instead of creating make.inc as specified above, I recommend adding this to your
+   buildrc. That way you have one easy place to change build setups:
+
+```
+cat <<EOF >make.inc
+# comment these for 32 bit build
+target_arch=arm64
+ARM64=1
+EOF
+
+```
+   * If you want to override schema mismatch processing (at your own risk)
+   add this to buildrc. You can also put configure overrides in here.
+
+```
+export IGNOREDEFINES="-DIGNORE_SCHEMA_VER_MISMATCH -DIGNORE_PROTO_VER_MISMATCH"
+```
    You should have a dir structure like this after you are done:
 
 ```
-   ~/android
-	android-ndk -> android-ndk-r13b
-	android-ndk-r13b
-	android-sdk-linux
-	android-studio
-	xxxxx-release.keystore
-	xxxxx.keystore
-	maketoolchain.sh
-	setenv.sh
+ls -1 $HOME/android/
+android-ndk -> Sdk/ndk/21.0.6113669
+android-sdk-linux -> Sdk
+android-studio
+Sdk
 ```
+    Android studio by default installs a debug keystore in $HOME/.android/
 
 3. Other dependencies
     * bison
@@ -59,17 +83,23 @@ ARM64=1
 
 4. Fetch and build all the libraries.
 
-   The script downloads source to build, but fails on mariadb. To avoid this problem
-   create directory workdir/packaging/android/tarballs and dowload mariadb-connector-c-2.1.0-src.tar.gz
-   from https://downloads.mariadb.org/connector-c/2.1.0/ into that directory.
-
+   The script downloads source to build and builds it.
    In workdir/packaging/android, run
 
 ```
     ./makelibs.sh all
 ```
+   or with logging
+
+```
+    ./makelibs.sh all 2>&1 | tee build_lib64.log
+```
     
-   This creates some 3 GB of data in a directory called workdir/packaging/android/mythinstall64 (for 64bit). I suggest making a copy of that, because that directory gets MythTV compile results added to it by mythbuild, and there is no "clean" process that cleans it up in case you want to be sure of running a pristine build in future.
+   This creates some 350 MB of data in a directory called
+   workdir/packaging/android/libsinstall64 (for 64bit).  Its contents
+   will be copied to a directory called
+   workdir/packaging/android/mythinstall64 and grow to about 2.5 GB
+   when MythTV is built.
 
 5. Build MythTV (debug by default)
 
@@ -79,7 +109,6 @@ ARM64=1
    ./mythbuild.sh
 ```
 
-Cross your fingers and hope I didnt miss a step.
 
 Debugging
 ---------
@@ -91,32 +120,15 @@ Debugging
   * ndk-gdb --launch --delay=0 -p mythinstall
   * or use supplied gdb.sh script
 
-Setting up the Options
-----------------------
 
-1. In Setup
-  * In Appearance, set render to Qt
-    * video will not work with this mode enabled
-    * try opengl2 but YMMV
-  * In Wizard, Audio, test speakers
-
-
-Previous Setup
---------------
-1. Select country/language
-2. Add DB details.
-  * Note: Un check ping server otherwise it won't work. There is no ping
-3. In Setup (you can only go back with Qt painter painter but video doesnt work with Qt theme Painter)
-  * select Theme first
-  * set key bindings for your back key and menu key
-  * Menu to Global.Menu
-  * Back to TV Playback.Back
-  * Finally in Appearance set painter to OpenGL
-    * After this, setup wont work properly, but playing video will
-    * if you want to do intensive setup work, switch back to Qt painter temporarily
+Setup
+-----
+Normal Mythfrontend setup procedures apply.
 
 Playback and LiveTV Usage
 -------------------------
+
+These notes apply to android on a phone or tablet. When using Android TV you need to use the android TV remote. Instructions for this are in the MythTV wiki.
 
 There are click zones in the playback window. The window is divided into a 4x3 grid with the
 following configurable key presses.
@@ -148,6 +160,8 @@ A    |  Down  |   Q    |   F
 * ] is volume up
 
 Also see the wiki page https://www.mythtv.org/wiki/MythTV_on_Android
+
+For running on Android TV see https://www.mythtv.org/wiki/Android
 
 YMMV
 Mark
