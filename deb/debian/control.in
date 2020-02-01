@@ -99,11 +99,7 @@ Build-Depends:  debhelper (>= 9),
                 qtpositioning5-dev,
                 libbluray-dev,
                 liblzo2-dev,
-<<<<<<< HEAD
-                libxnvctrl-dev,
-=======
                 libxcb-shm0-dev,
->>>>>>> upstream/master
                 libhdhomerun-dev
 
 Package: mythtv
@@ -153,13 +149,6 @@ Depends: adduser,
          libxml-xpath-perl,
          pciutils,
          usbutils,
-<<<<<<< HEAD
-         python-future,
-         python-requests,
-         python-requests-cache,
-         python-feedparser,
-         ffmpeg,
-=======
          python3,
          python3-requests,
          python3-requests-cache,
@@ -167,7 +156,6 @@ Depends: adduser,
          python3-mysqldb,
          python3-lxml,
          python3-future,
->>>>>>> upstream/master
          ${shlibs:Depends},
          ${misc:Depends}
 Suggests: mythtv-doc
@@ -294,13 +282,8 @@ Depends: mythtv-common,
          python3,
          python3-imdbpy,
          libgles2-mesa-dev [armhf],
-<<<<<<< HEAD
-         libegl1-mesa-dev [armhf]
-Recommends: libmythtv-perl, python-imaging | python-pil, udisks2 | udisks
-=======
          libegl1-mesa-dev [armhf],
 Recommends: libmythtv-perl, python3-imaging | python3-pil, udisks2 | udisks
->>>>>>> upstream/master
 Suggests: mythtv-backend, mythmusic, mythweather, mythgame, ntp | time-daemon | ntp-simple
 Conflicts: mythtv (<< 0.8-1), mythappearance (<< 0.21.0), mythstream (<< 0.21.0), mythflix (<< 0.23.0)
 Replaces: mythtv (<< 0.8-1),  mythappearance (<< 0.21.0), mythvideo
