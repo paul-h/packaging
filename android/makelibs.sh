@@ -182,6 +182,11 @@ while : ; do
 			shift
 			ARM64=1
 			;;
+		--sdk)
+			shift
+			export ANDROID_NATIVE_API_LEVEL=$1
+			shift
+			;;
 		*)
 			echo "$0 lib [lib...]"
 			echo " where lib is one or more of"
@@ -211,13 +216,14 @@ while : ; do
 			echo "   --cpus"
 			echo "   --arm"
 			echo "   --arm64"
+			echo "   --sdk <level>"
 			exit 1
 			;;
 	esac
 done
 
 QTMAJORVERSION=5.14
-QTVERSION=$QTMAJORVERSION.0
+QTVERSION=$QTMAJORVERSION.1
 BUILD_WEBKIT=0
 export ANDROID_NATIVE_API_LEVEL=${ANDROID_NATIVE_API_LEVEL:-29}
 export ANDROID_SDK_PLATFORM=android-$ANDROID_NATIVE_API_LEVEL
@@ -237,6 +243,8 @@ if [ $ARM64 == 1 ]; then
 else
 	if [ $ANDROID_NATIVE_API_LEVEL -gt 19 ]; then
 		TOOLCHAIN_SUFFIX=
+		EXTRA_QT_CONFIGURE_ARGS="-feature-neon"
+		#EXTRA_QT_CONFIGURE_ARGS="-no-feature-neon \"-after QMAKE_CFLAGS_NEON+=-mfloat-abi=softfp\""
 	else
 		TOOLCHAIN_SUFFIX=old
 		EXTRA_QT_CONFIGURE_ARGS=-no-feature-futimens
@@ -262,6 +270,7 @@ QTBUILDROOT=build$TOOLCHAIN_SUFFIX
 LIBSDIR=libs$TOOLCHAIN_SUFFIX
 
 #EXTRA_QT_CONFIGURE_ARGS="$EXTRA_QT_CONFIGURE_ARGS -after 'QMAKE_LFLAGS_SHLIB*=-rdynamic -frtti' -after 'QMAKE_LFLAGS_APP*=-rdynamic -frtti'"
+#EXTRA_QT_CONFIGURE_ARGS="$EXTRA_QT_CONFIGURE_ARGS -late 'QMAKE_LFLAGS_SHLIB*=-frtti -fexceptions' -late 'QMAKE_LFLAGS_APP*=-rdynamic -frtti -fexceptions'"
 CPUOPT="-march=$CPU_ARCH"
 CMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake
 
@@ -270,6 +279,12 @@ CMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake
 #armeabi-v7a with NEON - same as armeabi-v7a, but sets NEON as floating-point unit;
 #armeabi-v7a with VFPV3 - same as armeabi-v7a, but sets VFPv3_D32 as floating-point unit;
 export PKG_CONFIG_LIBDIR=$INSTALLROOT/lib
+
+build_log=build_summary.log
+date | tee -a $build_log
+echo makelibs.sh | tee -a $build_log
+echo ANDROID_NATIVE_API_LEVEL [SDK]: $ANDROID_NATIVE_API_LEVEL | tee -a $build_log
+echo ARM64: $ARM64 | tee -a $build_log
 
 # some headers are missing in post 19 ndks so copy them from 19 into
 # our output tree
@@ -563,7 +578,7 @@ STRIP=${CROSSPATH2}strip \
 	CPP1=${CROSSPATH2}cpp \
 	CPPFLAGS=$CFLAGS \
 	./configure --build=x86_64 --host=$BUILD_HOST --prefix=$INSTALLROOT --with-sysroot=$SYSROOT --enable-shared=yes --enable-static=yes &&
-	make $MAKEDEFS install-lib
+	make -j$NCPUS $MAKEDEFS install-lib
 	ERR=$?
 PATH=$OPATH
 unset OPATH
@@ -692,10 +707,11 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE \
       -DICONV_LIBRARY=$INSTALLROOT/lib/libiconv.a \
       .. && \
       make VERBOSE=1 libmariadb && \
-      cmake --build ./libmariadb --target install && \
-      cmake --build ./include --target install && \
-      #cp "$INSTALLROOT"/lib/mariadb/lib{mariadb,mysql}client.a
+      cmake --build ./libmariadb  --target install && \
+      cmake --build ./include  --target install && \
       ERR=$?
+
+      #cp "$INSTALLROOT"/lib/mariadb/lib{mariadb,mysql}client.a
 
 popd
 popd
@@ -998,9 +1014,11 @@ if [ $ARM64 == 1 ]; then
 else
 	CPUOPT="-march=$CPU_ARCH"
 fi
+echo $INSTALLROOT
 ./configure \
-	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
+	CFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
+	CXXFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
+	LDFLAGS="-L$INSTALLROOT/lib $OPTS -pie -Wl,-rpath-link=$SYSROOT/usr/lib -Wl,-rpath-link=$SYSROOTARCH/usr/lib -Wl,-rpath-link=$INSTALLROOT/lib" \
 	RANLIB=${CROSSPATH2}ranlib \
 	OBJDUMP=${CROSSPATH2}objdump \
 	AR=${CROSSPATH2}ar \
@@ -1011,10 +1029,12 @@ fi
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
 	--disable-xmp \
+	--without-iconv \
+	--without-icu \
 	--without-python \
 	--enable-shared \
 	--enable-static &&
-	make -j$NCPUS &&
+	make -j$NCPUS VERBOSE=1 &&
 	make install
 	ERR=$?
 
@@ -1304,17 +1324,17 @@ if [ $CLEAN == 1 ]; then
 	mv fc-blanks/fcblanks.h{.1,} || true
 fi
 
-#local CPUOPT=
-#if [ $ARM64 == 1 ]; then
-#	CPUOPT="-march=$CPU_ARCH"
-#else
-#	CPUOPT="-march=$CPU_ARCH"
-#fi
+local OPTS=
+if [ $ARM64 == 1 ]; then
+	OPTS="-fPIE"
+else
+	OPTS="-fPIC"
+fi
 #./autogen.sh &&
 PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
-CFLAGS="-isysroot $SYSROOT $CPUOPT -fPIE $ANDROID_API_DEF -DFONTCONFIG_FILE=\\\"~/fonts.conf\\\"" \
-CXXFLAGS="-isysroot $SYSROOT $CPUOPT -fPIE $ANDROID_API_DEF -DFONTCONFIG_FILE=\\\"~/fonts.conf\\\"" \
-LDFLAGS="-L$INSTALLROOT/lib -fPIE -pie -Wl,-rpath-link=$SYSROOT/usr/lib -Wl,-rpath-link=$SYSROOTARCH/usr/lib -Wl,-rpath-link=$INSTALLROOT/lib -llog" \
+CFLAGS="-isysroot $SYSROOT $CPUOPT $OPTS $ANDROID_API_DEF -DFONTCONFIG_FILE=\\\"~/fonts.conf\\\"" \
+CXXFLAGS="-isysroot $SYSROOT $CPUOPT $OPTS $ANDROID_API_DEF -DFONTCONFIG_FILE=\\\"~/fonts.conf\\\"" \
+LDFLAGS="-L$INSTALLROOT/lib $OPTS -pie -Wl,-rpath-link=$SYSROOT/usr/lib -Wl,-rpath-link=$SYSROOTARCH/usr/lib -Wl,-rpath-link=$INSTALLROOT/lib -llog" \
 RANLIB=${CROSSPATH2}ranlib \
 OBJDUMP=${CROSSPATH2}objdump \
 AR=${CROSSPATH2}ar \
@@ -1724,7 +1744,7 @@ local CPUOPT=
 #	CPUOPT="-march=$CPU_ARCH"
 #fi
 ./configure \
-	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
+	CFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	RANLIB=${CROSSPATH2}ranlib \
 	OBJDUMP=${CROSSPATH2}objdump \
@@ -1732,6 +1752,7 @@ local CPUOPT=
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
 	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
+	LDFLAGS="-L$INSTALLROOT/lib" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
@@ -2487,7 +2508,9 @@ configure_qt5() {
 
 	#install ../qtbase/src/3rdparty/sqlite/sqlite3.h $INSTALLROOT/include/
 
+	export PKG_CONFIG_SYSROOT_DIR=$INSTALLROOT
 	export ANDROID_TARGET_ARCH=$ARMEABI
+	export ANDROID_ABIS=$ARMEABI
 	export ANDROID_NDK_TOOLS_PREFIX=$MY_ANDROID_NDK_TOOLS_PREFIX
 	#export ANDROID_NDK_TOOLCHAIN_PATH
 	#export ANDROID_NDK_PLATFORM_ROOT_PATH="$SYSROOT"
@@ -2505,6 +2528,55 @@ configure_qt5() {
 		fi
 	fi
 
+	SKIPS=
+	SKIPS="$SKIPS -skip qt3d"
+	SKIPS="$SKIPS -skip qtactiveqt"
+	#SKIPS="$SKIPS -skip qtandroidextras"
+	#SKIPS="$SKIPS -skip qtbase"
+	SKIPS="$SKIPS -skip qtcharts"
+	SKIPS="$SKIPS -skip qtconnectivity"
+	SKIPS="$SKIPS -skip qtdatavis3d"
+	SKIPS="$SKIPS -skip qtdeclarative"
+	SKIPS="$SKIPS -skip qtdoc"
+	SKIPS="$SKIPS -skip qtgamepad"
+	SKIPS="$SKIPS -skip qtgraphicaleffects"
+	SKIPS="$SKIPS -skip qtimageformats"
+	SKIPS="$SKIPS -skip qtlocation"
+	SKIPS="$SKIPS -skip qtlottie"
+	SKIPS="$SKIPS -skip qtmacextras"
+	SKIPS="$SKIPS -skip qtmultimedia"
+	SKIPS="$SKIPS -skip qtnetworkauth"
+	SKIPS="$SKIPS -skip qtpurchasing"
+	SKIPS="$SKIPS -skip qtquick3d"
+	SKIPS="$SKIPS -skip qtquickcontrols"
+	SKIPS="$SKIPS -skip qtquickcontrols2"
+	SKIPS="$SKIPS -skip qtquicktimeline"
+	SKIPS="$SKIPS -skip qtremoteobjects"
+	#SKIPS="$SKIPS -skip qtscript"
+	SKIPS="$SKIPS -skip qtscxml"
+	SKIPS="$SKIPS -skip qtsensors"
+	SKIPS="$SKIPS -skip qtserialbus"
+	SKIPS="$SKIPS -skip qtserialport"
+	SKIPS="$SKIPS -skip qtspeech"
+	SKIPS="$SKIPS -skip qtsvg"
+	SKIPS="$SKIPS -skip qttools"
+	SKIPS="$SKIPS -skip qttranslations"
+	SKIPS="$SKIPS -skip qtvirtualkeyboard"
+	SKIPS="$SKIPS -skip qtwayland"
+	SKIPS="$SKIPS -skip qtwebchannel"
+	SKIPS="$SKIPS -skip qtwebengine"
+	SKIPS="$SKIPS -skip qtwebglplugin"
+	SKIPS="$SKIPS -skip qtwebsockets"
+	SKIPS="$SKIPS -skip qtwebview"
+	SKIPS="$SKIPS -skip qtwinextras"
+	SKIPS="$SKIPS -skip qtx11extras"
+	SKIPS="$SKIPS -skip qtxmlpatterns"
+
+	SKIPS="$SKIPS -no-make qtprintsupport"
+	SKIPS="$SKIPS -no-make qttest"
+
+	#../configure -list-features
+	#../configure -h
 	MAKEFLAGS="-j$NCPUS" \
 	../configure \
 		-xplatform android-clang \
@@ -2523,8 +2595,7 @@ configure_qt5() {
 		-L "$INSTALLROOT/lib/mariadb" \
 		-plugin-sql-mysql \
 		-qt-sqlite \
-		-skip qttranslations \
-		-skip qtserialport \
+		$SKIPS \
 		-feature-rtti \
 		-feature-exceptions \
 		-no-warnings-are-errors \
@@ -2888,6 +2959,7 @@ pushd $LIBSDIR
 [ -n "$BUILD_GETTEXT" ] && build_gettext
 [ -n "$BUILD_OPENSSL" ] && build_openssl
 [ -n "$BUILD_ICONV" ] && build_iconv
+[ -n "$BUILD_ICU" ] && build_icu
 [ -n "$BUILD_XML2" ] && build_xml2
 [ -n "$BUILD_MARIADB" ] && build_mariadb
 [ -n "$BUILD_LAME" ] && build_lame
@@ -2899,7 +2971,6 @@ pushd $LIBSDIR
 [ -n "$BUILD_LIBXSLT" ] && build_libxslt
 [ -n "$BUILD_FFI" ] && build_ffi
 [ -n "$BUILD_GLIB" ] && build_glib
-[ -n "$BUILD_ICU" ] && build_icu
 [ -n "$BUILD_LZO" ] && build_android_external_liblzo
 [ -n "$BUILD_FONTCONFIG" ] && build_fontconfig
 [ -n "$BUILD_FRIBIDI" ] && build_fribidi
