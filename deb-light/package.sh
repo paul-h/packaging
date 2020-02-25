@@ -119,16 +119,17 @@ Architecture: $arch
 Essential: no
 Installed-Size: `du -B1024 -d0 $installdir/$packagename | cut  -f1`
 Maintainer: Peter Bennett <pbennett@mythtv.org>
-Depends: $deps libavahi-compat-libdnssd1, libqt5widgets5, libqt5script5, libqt5sql5-mysql, libqt5xml5, libqt5network5, libqt5webkit5, pciutils, libva-x11-1 | libva-x11-2, libva-glx1 | libva-glx2, libqt5opengl5, libdbi-perl,  libdbd-mysql-perl, libnet-upnp-perl, python-lxml, python-mysqldb, python-urlgrabber, libcec3 | libcec4, libfftw3-double3, libfftw3-single3, libass5 | libass9, libfftw3-3, libraw1394-11, libiec61883-0, libavc1394-0, fonts-liberation, libva-drm1 | libva-drm2, libmp3lame0, libxv1, libpulse0, libhdhomerun3 | libhdhomerun4, libxnvctrl0, libsamplerate0, libbluray1 | libbluray2, liblzo2-2, libio-socket-inet6-perl
+Depends: $deps libavahi-compat-libdnssd1, libqt5widgets5, libqt5script5, libqt5sql5-mysql, libqt5xml5, libqt5network5, libqt5webkit5, pciutils, libva-x11-1 | libva-x11-2, libva-glx1 | libva-glx2, libqt5opengl5, libdbi-perl,  libdbd-mysql-perl, libnet-upnp-perl, python-lxml, python-mysqldb, python-urlgrabber, libcec3 | libcec4, libfftw3-double3, libfftw3-single3, libass5 | libass9, libfftw3-3, libraw1394-11, libiec61883-0, libavc1394-0, fonts-liberation, libva-drm1 | libva-drm2, libmp3lame0, libxv1, libpulse0, libhdhomerun3 | libhdhomerun4, libxnvctrl0, libsamplerate0, libbluray1 | libbluray2, liblzo2-2, libio-socket-inet6-perl, libxml-simple-perl
 Conflicts: mythtv-common, mythtv-frontend, mythtv-backend
 Homepage: http://www.mythtv.org
 Description: MythTV Light
  Lightweight package that installs MythTV in one package, front end
  and backend. Does not install database or services.
 FINISH
-        mkdir -p $installdir/$packagename/usr/share/applications/
-        cat >$installdir/$packagename/usr/share/applications/mythtv.desktop \
-        <<FINISH
+        if [[ "$arch" != armhf ]] ; then
+            mkdir -p $installdir/$packagename/usr/share/applications/
+            cat >$installdir/$packagename/usr/share/applications/mythtv.desktop \
+            <<FINISH
 [Desktop Entry]
 Name=MythTV Frontend
 Comment=A frontend for all content on a mythtv-backend
@@ -139,8 +140,8 @@ Encoding=UTF-8
 Icon=/usr/share/pixmaps/mythtv.png
 Categories=GNOME;Application;AudioVideo;Audio;Video
 FINISH
-        cat >$installdir/$packagename/usr/share/applications/mythtv-setup.desktop \
-        <<FINISH
+            cat >$installdir/$packagename/usr/share/applications/mythtv-setup.desktop \
+            <<FINISH
 [Desktop Entry]
 Name=MythTV Backend Setup
 Comment=Used to configure a backend
@@ -152,16 +153,16 @@ Icon=/usr/share/pixmaps/mythtv.png
 Categories=GTK;System;Settings
 X-AppInstall-Package=mythtv
 FINISH
-        mkdir -p $installdir/$packagename/usr/share/pixmaps/
-        cp -f $scriptpath/mythtv.png $installdir/$packagename/usr/share/pixmaps/
+            mkdir -p $installdir/$packagename/usr/share/pixmaps/
+            cp -f $scriptpath/mythtv.png $installdir/$packagename/usr/share/pixmaps/
 
-        mkdir -p $installdir/$packagename/usr/share/menu/
-        cat >$installdir/$packagename/usr/share/menu/mythtv-frontend \
-        <<FINISH
+            mkdir -p $installdir/$packagename/usr/share/menu/
+            cat >$installdir/$packagename/usr/share/menu/mythtv-frontend \
+            <<FINISH
 ?package(mythtv-frontend):needs="X11" section="Applications/Graphics" \
   title="MythTV" command="/usr/bin/mythfrontend"
 FINISH
-
+        fi
         cd $installdir
         chmod -R  g-w,o-w $packagename
         fakeroot dpkg-deb --build $packagename
