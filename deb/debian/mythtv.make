@@ -73,12 +73,8 @@ get-git-source:
 		cd mythplugins/mythweb; \
 		git fetch ;\
 		git checkout $(GIT_BRANCH) || git checkout $(GIT_BRANCH_FALLBACK);\
-<<<<<<< HEAD
-		git pull ;\
-=======
 		git pull --rebase ;\
 		git clean -f -d -X;\
->>>>>>> upstream/master
 	else \
 		mkdir -p mythplugins/mythweb ;\
 		git clone $(MYTHWEB_GIT_URL) tmp ;\
