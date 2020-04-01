@@ -81,12 +81,6 @@ ifeq "$(DEB_BUILD_ARCH)" "armhf"
 	MYTHPLUGINS_CONFIGURE_OPTS += --disable-opengl
 endif
 
-#Use moar CPUs for jya
-PROCESSORS       ?= $(shell grep -ic ^processor /proc/cpuinfo)
-ifeq (0,$(PROCESSORS))
-PROCESSORS := 1
-endif
-
 #link problem with binutils 2.21 in precise
 #and ffmpeg sync from 0.26, libswscale
 LDFLAGS:=$(shell DEB_LDFLAGS_MAINT_STRIP="-Wl,-Bsymbolic-functions" dpkg-buildflags --get LDFLAGS)
@@ -95,26 +89,26 @@ LDFLAGS:=$(shell DEB_LDFLAGS_MAINT_STRIP="-Wl,-Bsymbolic-functions" dpkg-buildfl
 export HOME=$(CURDIR)/debian/home_$(DEB_BUILD_ARCH)
 
 %:
-	dh $@ --parallel --with systemd
+	dh $@ --parallel --with systemd,python3
 
 #Rather than have a configure/build/install phase, combine them all so we can do each part in order
 override_dh_auto_install:
-	if [ -f mythtv/EXPORTED_VERSION ] && [ -f debian/DESCRIBE ]; then \
+	if [ ! -f mythtv/EXPORTED_VERSION.old ] && [ -f debian/DESCRIBE ]; then \
 		mv mythtv/EXPORTED_VERSION mythtv/EXPORTED_VERSION.old ;\
 		cp debian/DESCRIBE mythtv/EXPORTED_VERSION ;\
 	fi
 	cd mythtv && sh version.sh `pwd`
 
-	mkdir $(CURDIR)/debian/home
+	install -m0755 -d $(CURDIR)/debian/home
 
 	#mythtv
 	cd mythtv && ./configure $(MYTHTV_CONFIGURE_OPTS)
-	$(MAKE) -j$(PROCESSORS) -C mythtv
+	$(MAKE) -C mythtv
 	$(MAKE) -C mythtv install INSTALL_ROOT=$(CURDIR)/debian/tmp
 
 	#mythplugins
 	cd mythplugins && ./configure $(MYTHPLUGINS_CONFIGURE_OPTS) --mythroot=$(CURDIR)/debian/tmp:$(CURDIR)/debian/libmyth-python
-	$(MAKE) -j$(PROCESSORS) -C mythplugins
+	$(MAKE) -C mythplugins
 	for plugin in mytharchive \
 	mythgame mythmusic mythnews \
 	mythweather mythzoneminder mythbrowser ; do \
@@ -125,17 +119,11 @@ override_dh_auto_install:
 	mv debian/tmp/usr/bin/mythfrontend debian/tmp/usr/bin/mythfrontend.real
 	mv debian/tmp/usr/bin/mythtv-setup debian/tmp/usr/bin/mythtv-setup.real
 
-	#(All) Make sure python/perl scripts are executable
-	find debian/tmp/usr/share -type f \( -iname "*.p[y|l]" ! -iname "oauth_api.py" \) -size +1b -exec chmod 755 {} \;
-
-	#Set up python package properly
-	dh_python3 -plibmyth-python
-
 override_dh_install:
-	mkdir -p ${buildroot}/etc/php5/apache2/conf.d; \
-	cp debian/20-mythweb.ini   ${buildroot}/etc/php5/apache2/conf.d; \
-	mkdir -p ${buildroot}/etc/php/7.0/apache2/conf.d; \
-	cp debian/20-mythweb.ini   ${buildroot}/etc/php/7.0/apache2/conf.d; \
+	install -m0755 -d ${buildroot}/etc/php5/apache2/conf.d
+	install -m0644 debian/20-mythweb.ini   ${buildroot}/etc/php5/apache2/conf.d
+	install -m0755 -d ${buildroot}/etc/php/7.0/apache2/conf.d
+	install -m0644 debian/20-mythweb.ini   ${buildroot}/etc/php/7.0/apache2/conf.d
 	dh_install -Xusr/share/mythtv/fonts/Free \
                    -Xusr/share/mythtv/fonts/Purisa \
                    -Xusr/share/mythtv/fonts/texgyrechorus \
@@ -148,16 +136,8 @@ override_dh_install:
                    -Xjquery.min.js \
                    --fail-missing
 
-override_dh_installinit:
-	dh_installinit
-
 	#(MythTV) Remove license files
-	find debian/tmp -name "COPYING" -delete
-	find debian/tmp -name "README.license" -delete
-
-	#(MythTV) Set correct permissions for png and html files
-	find debian/tmp -regex '.*\.png$$' -print0 | xargs -0 -r chmod 644
-	find debian/tmp -regex '.*\.html$$' -print0 | xargs -0 -r chmod 644
+	find debian/tmp \( -name "COPYING" -o -name "README.license" \) -delete
 
 override_dh_strip:
 	dh_strip --dbg-package=mythtv-dbg
@@ -167,10 +147,11 @@ override_dh_compress:
 
 override_dh_fixperms:
 	dh_fixperms -X.pl -X.py
-	#themes shouldn't be like this
-	for type in png html txt jpg xml ; do \
-		find debian -name "*.$$type" -type f -exec chmod -x {} \; ;\
-	done
+
+	#(All) Make sure python/perl scripts are executable
+	find debian/tmp/usr/share -type f \( -iname "*.p[yl]" ! -iname "oauth_api.py" \) -size +1b -exec chmod 755 {} \;
+	#(All) Remove execute permission from data files
+	find debian/tmp \( -name '*.png' -o -name '*.html' -o -name '*.txt' -o -name '*.jpg' -o -name '*.xml' \) -exec chmod 644 {} +
 
 override_dh_auto_clean:
 	[ -f mythtv/config.mak ] && $(MAKE) -C mythtv distclean || true

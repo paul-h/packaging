@@ -8,7 +8,7 @@ Homepage: http://www.mythtv.org
 Standards-Version: 3.9.4
 Vcs-Git: git://github.com/MythTV/packaging.git
 Build-Conflicts: libqt3-mt-dev
-Build-Depends:  debhelper (>= 9),
+Build-Depends:  debhelper (>= 9.20160709),
                 quilt,
                 ccache,
                 nasm,
@@ -49,7 +49,7 @@ Build-Depends:  debhelper (>= 9),
                 libdbd-mysql-perl,
                 libjson-perl,
                 libwww-perl,
-                dh-python | python-central,
+                dh-python,
                 python3,
                 python3-lxml,
                 python3-mysqldb,
@@ -92,7 +92,6 @@ Build-Depends:  debhelper (>= 9),
                 libxml-xpath-perl,
                 git,
                 libsystemd-dev,
-                dh-systemd,
                 libraspberrypi-dev [armhf] | hello,
                 libqt5webenginecore5,
                 qtwebengine5-dev,
@@ -160,6 +159,7 @@ Depends: adduser,
          python3-lxml,
          python3-future,
          ${shlibs:Depends},
+         ${perl:Depends},
          ${misc:Depends}
 Suggests: mythtv-doc
 Recommends: mythtv-dbg
@@ -285,7 +285,7 @@ Depends: mythtv-common,
          python3,
          libgles2-mesa-dev [armhf],
          libegl1-mesa-dev [armhf],
-Recommends: libmythtv-perl, python3-imaging | python3-pil, udisks2 | udisks
+Recommends: libmythtv-perl, python3-pil, udisks2 | udisks
 Suggests: mythtv-backend, mythmusic, mythweather, mythgame, ntp | time-daemon | ntp-simple
 Conflicts: mythtv (<< 0.8-1), mythappearance (<< 0.21.0), mythstream (<< 0.21.0), mythflix (<< 0.23.0)
 Replaces: mythtv (<< 0.8-1),  mythappearance (<< 0.21.0), mythvideo
@@ -424,9 +424,9 @@ Package: mythgame
 Architecture: any
 Depends: mythtv-frontend (>= ${binary:Version}),
          python3,
+         minizip,
          ${shlibs:Depends},
-         ${misc:Depends},
-         minizip
+         ${misc:Depends}
 Description: Emulator & PC Game frontend module for MythTV
  MythGame can be used as a frontend to start any emulator that your host OS
  runs.
@@ -454,6 +454,7 @@ Package: mythweather
 Architecture: any
 Depends: mythtv-frontend (>= ${binary:Version}),
          ${shlibs:Depends},
+         ${perl:Depends},
          ${misc:Depends},
          perl,
          libimage-size-perl,
@@ -485,6 +486,7 @@ Depends: mythtv-common (>= ${binary:Version}),
          libhttp-date-perl,
          libjs-prototype,
          libjs-scriptaculous,
+         ${perl:Depends},
          ${misc:Depends}
 Recommends: libmath-round-perl
 Description: Web interface add-on module for MythTV
@@ -502,7 +504,7 @@ Depends: mythtv-transcode-utils(>= ${binary:Version}),
          genisoimage,
          dvd+rw-tools,
          python3,
-         python3-imaging | python3-pil,
+         python3-pil,
          python3-mysqldb,
          pmount,
          ${shlibs:Depends},
