@@ -94,11 +94,12 @@ export HOME=$(CURDIR)/debian/home_$(DEB_BUILD_ARCH)
 #Rather than have a configure/build/install phase, combine them all so we can do each part in order
 override_dh_auto_install:
 	# mythtv's version.sh uses DESCRIBE to get git branch and version information
-	cp debian/DESCRIBE mythtv/DESCRIBE
 	echo "pwd is: " `pwd`
 	echo "CURDIR is:" $(CURDIR)
 	echo `ls debian`
+	cp debian/DESCRIBE mythtv/DESCRIBE
 	echo `ls mythtv`
+
 	cd mythtv && sh version.sh `pwd`
 
 	install -m0755 -d $(CURDIR)/debian/home
