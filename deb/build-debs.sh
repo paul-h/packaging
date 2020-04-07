@@ -147,9 +147,9 @@ cp "$DIRECTORY/mythtv/debian/changelog.in" "$DIRECTORY/mythtv/debian/changelog"
 #build packaging changelog
 DATE=$(date +%F -d "$(dpkg-parsechangelog -l"$DIRECTORY/mythtv/debian/changelog" -SDate)")
 TODAY=$(date +%F)
+PACKAGING_HASH=$(git -C "$DEBDIR" rev-parse --short HEAD)
 if [ "$DATE" != "$TODAY" ]; then
 	echo "Packaging changes between $DATE and $TODAY:"
-	GIT_DATE=$(echo "$DATE" | sed 's/^\(.\{4\}\)/\1./; s/^\(.\{7\}\)/\1./')
 	git -C "$DEBDIR" log --grep="^deb: " --oneline --since="$DATE" | sed 's/^/[/; s/ deb:/]/' > "$DIRECTORY/mythtv/.gitout"
 fi
 
@@ -161,8 +161,6 @@ if [ -n "$PATCHES" ]; then
 		echo "Applied $PATCH to build"
 	done > "$DIRECTORY/mythtv/.gitout"
 fi
-
-PACKAGING_HASH=$(git rev-parse --short HEAD)
 
 # Change to the build directory
 cd "$DIRECTORY/mythtv"
