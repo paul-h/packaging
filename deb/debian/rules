@@ -101,7 +101,7 @@ export HOME=$(CURDIR)/debian/home_$(DEB_BUILD_ARCH)
 override_dh_auto_install:
 	# create the DESCRIBE file that Myth's version.sh will use to get the version
 	DEB_VERSION="$(shell dpkg-parsechangelog -S version)" ;\
-	GIT_VERSION"$(shell echo $(DEB_VERSION) | sed 's/[0-9]:/v/')" ;\
+	GIT_VERSION="$(shell echo $(DEB_VERSION) | sed 's/[0-9]:/v/')" ;\
 	GIT_BRANCH="$(shell echo $(DEB_VERSION) | sed -e 's/~ubuntu.*//' -e 's/.*[~+]//' -e 's/\..*//')" ;\
 	echo "BRANCH=\"$$GIT_BRANCH\"" > mythtv/DESCRIBE ;\
 	echo "SOURCE_VERSION=\"$$GIT_VERSION\"" >> mythtv/DESCRIBE ;\
