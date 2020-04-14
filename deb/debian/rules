@@ -107,7 +107,7 @@ override_dh_auto_install:
 	ifeq "$(GIT_BRANCH)" "fixes" \
 		echo "BRANCH=\"$$GIT_BRANCH/$$GIT_MAJOR\"" > mythtv/DESCRIBE ;\
 	else \
-		echo "BRANCH=\"$$GIT_BRANCH\"" > mythtv/DESCRIBE \
+		echo "BRANCH=\"$$GIT_BRANCH\"" > mythtv/DESCRIBE ;\
 	endif ;\
 	echo "SOURCE_VERSION=\"$$GIT_VERSION\"" >> mythtv/DESCRIBE ;\
 
