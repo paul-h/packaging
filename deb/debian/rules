@@ -105,9 +105,9 @@ override_dh_auto_install:
 	GIT_MAJOR="$(shell echo $(DEB_VERSION) | sed -e 's/~ubuntu.*//' -e 's/.*://' -e 's/\..*//')" ;\
 	GIT_BRANCH="$(shell echo $(DEB_VERSION) | sed -e 's/~ubuntu.*//' -e 's/.*[~+]//' -e 's/\..*//')" ;\
 	ifeq "$(GIT_BRANCH)" "fixes" \
-		echo "BRANCH=\"$$GIT_BRANCH/$$GIT_MAJOR\"" > mythtv/DESCRIBE ;\
+		echo "BRANCH=\"$$GIT_BRANCH/$$GIT_MAJOR\"" > mythtv/DESCRIBE \
 	else \
-		echo "BRANCH=\"$$GIT_BRANCH\"" > mythtv/DESCRIBE ;\
+		echo "BRANCH=\"$$GIT_BRANCH\"" > mythtv/DESCRIBE \
 	endif ;\
 	echo "SOURCE_VERSION=\"$$GIT_VERSION\"" >> mythtv/DESCRIBE ;\
 
