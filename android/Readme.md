@@ -23,8 +23,8 @@ ln -s Android android
    
    * After Android Studio is installed, use it to install the Android SDK.
      * In Android Studio, choose Configure / SDK Manager.
-     * Install the desired SDK versions.  Install SDK 28 and 29.
-     * Install the desired SDK Tools. Select CMake, build tools and NDK (Side by Side). By clicking "Show package details" you can select a specific version. Currently we are using the latest versions, NDK 21, build-tools 29, SDK tools 26.
+     * Install the desired SDK versions.  Install SDK 29.
+     * Install the desired SDK Tools. Select CMake, build tools and NDK (Side by Side). By clicking "Show package details" you can select a specific version. Currently we are using the latest versions, NDK 21, build-tools 29, SDK tools 26. Note that setenv.sh is hardcoded for build tools 29.0.2. Make sure you install that. When that is unavailable we will have to update setenv.sh.
    * Set up links as follows, using the version of ndk that was installed.
 
 ```
@@ -45,11 +45,11 @@ KEYSTOREPASSWORD=<key password>
 BUNDLESIGN="--sign $KEYSTORE $KEYALIAS --storepass $KEYSTOREPASSWORD"
 ```
 
-   * Optionally add these lines to buildrc. The ARM64 value can be set to 0 or 1 to build 32-bit or 64-bit packages.
+   * Optionally add these lines to buildrc. The ARM64 value can be set to 0 or 1 to build 32-bit or 64-bit packages. The API level can be set to 21 or 24, however for Android 5 it needs to be set at 21. 21 and 24 both work for later versions of android.
 
 ```
 ARM64=0
-ANDROID_NATIVE_API_LEVEL=24
+ANDROID_NATIVE_API_LEVEL=21
 ```
 
    * If you want to override schema mismatch processing (at your own risk)
@@ -78,20 +78,24 @@ Sdk
     * ruby
     * ant (for libbluray)
     * gettext development libraries
+    * cmake
+    * fontconfig
 
 4. Fetch and build all the libraries.
    The script downloads source to build and builds it.
    In workdir/packaging/android, run this. Set "arm" or "arm64" for the mode. If you set the sdk version and ARM64 variable in buildrc you need not set them here.
-
+   
 ```
-    make SDK=24 MODE=arm64 libs
+    make SDK=21 MODE=arm64 libs
 ```
 
    or with logging
 
 ```
-    make SDK=24 MODE=arm64 libs |& tee build_lib64.log
+    make SDK=21 MODE=arm64 libs |& tee build_lib64.log
 ```
+
+   Note that branches fixes/31 and master download different library versions. If you have built libraries for one branch and then need to build another, you will have to completely clear out the prior ones. Since building the libraries takes a long time, it may be preferable to keep two copies of the packaging directory, one for each branch. (Building fixes/31 libraries without first clearing master libraries causes error "AutoPtr is not defined" when subsequently building MythTV).
 
    This creates some 350 MB of data in a directory called
    workdir/packaging/android/libsinstall64 (for 64bit).  Its contents
@@ -103,7 +107,7 @@ Sdk
    In workdir/packaging/android, run this. As for the libs, set "arm" or "arm64" for the mode. If you set the sdk version and ARM64 variable in buildrc you need not set them here.
 
 ```
-   make SDK=24 MODE=arm64 apk
+   make SDK=21 MODE=arm64 apk
 ```
 
 6. Other targets for make are "clean" to clean the application, "distclean" to clean the libs and application, "everything" for libs and apk.
