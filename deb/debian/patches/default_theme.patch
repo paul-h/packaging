@@ -1,15 +1,15 @@
-diff --git a/mythtv/libs/libmythui/mythuihelper.h b/mythtv/libs/libmythui/mythuihelper.h
-index d443057..37428d8 100644
---- a/mythtv/libs/libmythui/mythuihelper.h
-+++ b/mythtv/libs/libmythui/mythuihelper.h
-@@ -9,8 +9,8 @@
- #include "mythuiexp.h"
+Index: mythtv/mythtv/libs/libmythui/mythuithemehelper.h
+===================================================================
+--- mythtv.orig/mythtv/libs/libmythui/mythuithemehelper.h	2015-04-12 15:24:03.598909276 +0000
++++ mythtv/mythtv/libs/libmythui/mythuithemehelper.h	2015-04-12 15:24:03.598909276 +0000
+@@ -4,8 +4,8 @@
+ // MythTV
  #include "themeinfo.h"
  
 -#define DEFAULT_UI_THEME "MythCenter"
 -#define FALLBACK_UI_THEME "Terra"
-+#define DEFAULT_UI_THEME "Mythbuntu"
-+#define FALLBACK_UI_THEME "MythCenter-wide"
++#define DEFAULT_UI_THEME "MythCenter-wide"
++#define FALLBACK_UI_THEME "MythCenter"
  
- class MythUIHelperPrivate;
- class MThreadPool;
+ class MUI_PUBLIC MythUIThemeHelper
+ {
