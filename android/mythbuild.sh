@@ -260,7 +260,7 @@ function bundle_apk() {
 	# plugins are not automatically installed so copy them
 	for i in $MYTHINSTALLROOT/lib/libmythpluginmyth{archive,netvision,news,browser,game,music,zoneminder}.so \
 		$MYTHINSTALLROOT/lib/libmyth{archivehelper,fillnetvision}.so \
-		$MYTHINSTALLROOT/lib/lib{ogg,vorbis,vorbisfile,vorbisenc,FLAC,fontconfig,icui18n60,icuuc60,icudata60,icudata60,iconv,ass,fribidi,exiv2,fftw*,zip}.so \
+		$MYTHINSTALLROOT/lib/lib{ogg,vorbis,vorbisfile,vorbisenc,FLAC,fontconfig,icui18n60,icuuc60,icudata60,icudata60,iconv,ass,fribidi,exiv2,fftw*,zip,SoundTouch}.so \
 		$QTBASE/lib/libQt5{OpenGL,WebKitWidgets,WebKit,Sensors,Positioning,MultimediaWidgets,Multimedia,PrintSupport,Quick,Qml,WebChannel}.so \
 		; do
 		if [ -e "$i" ]; then
@@ -329,10 +329,10 @@ else
 		touch $MYMYTHBUILDBASEPATH/mythtv/stamp_shadow_android
 	fi
 	pushd $MYMYTHBUILDPATH
-	rm EXPORTED_VERSION VERSION
+	rm EXPORTED_VERSION SRC_VERSION
 	echo "Format" > EXPORTED_VERSION
-	echo "SOURCE_VERSION=\"$SOURCE_VERSION\"" > VERSION
-	echo "BRANCH=\"$BRANCH\"" >> VERSION
+	echo "SOURCE_VERSION=\"$SOURCE_VERSION\"" > SRC_VERSION
+	echo "BRANCH=\"$BRANCH\"" >> SRC_VERSION
 	popd
 	pwd
 	cd $MYMYTHBUILDPATH
@@ -349,6 +349,7 @@ if [ ! -e stamp_configure_android ] ; then
 	[ -n "$CPU" ] && CPU=
 $MYTHTVSRC/configure \
 	--disable-ccache \
+        $MYTHCONFIGEXTRA \
 	--cross-prefix="$CROSSPATH2" \
 	--cross-prefix-cc="$CROSSPATH3" \
 	--arch=$ARCH $CPU \
