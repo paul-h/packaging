@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <manifest package="org.mythtv.mythfrontend" xmlns:android="http://schemas.android.com/apk/res/android" android:versionName="1.0" android:versionCode="1" android:installLocation="auto">
-    <application android:hardwareAccelerated="true" android:name="org.qtproject.qt5.android.bindings.QtApplication" android:label="mythfrontend" android:icon="@drawable/ic_launcher" android:banner="@drawable/banner" android:debuggable="true" android:theme="@style/AppTheme" >
+    <application android:hardwareAccelerated="true" android:name="org.qtproject.qt5.android.bindings.QtApplication" android:label="mythfrontend" android:icon="@drawable/ic_launcher" android:banner="@drawable/banner" android:debuggable="true" android:theme="@style/AppTheme" android:extractNativeLibs="true" >
         <activity android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation" android:name="org.qtproject.qt5.android.bindings.QtActivity" android:label="mythfrontend" android:screenOrientation="landscape" android:launchMode="singleTop" android:noHistory="false">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -72,7 +72,9 @@
 
     </application>
 
+<!-- With Qt 5.15.3, this line causes error "The minSdk version should not be declared in the android manifest file."
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="29"/>
+-->
     <supports-screens android:xlargeScreens="true" android:largeScreens="true" android:normalScreens="true" android:anyDensity="true" android:smallScreens="true" android:resizeable="true" />
 
     <!-- The following comment will be replaced upon deployment with default permissions based on the dependencies of the application.

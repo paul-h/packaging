@@ -29,13 +29,13 @@ if [ -d "$1" ] && [[ ! $PATH =~ (^|:)$1(:|$) ]]; then
 fi
 }
 
+if [[ -f buildrc ]] ; then
+    . buildrc
+fi
+
 privatepathadd $ANDROID_SDK/tools
 privatepathadd $ANDROID_SDK/platform-tools
 privatepathadd $ANDROID_NDK
 privatepathadd $JDK_PATH
 
 unset -f privatepathadd
-
-if [[ -f buildrc ]] ; then
-    . buildrc
-fi

@@ -56,6 +56,10 @@ while : ; do
 			shift
 			BUILD_FONTCONFIG=1
 			;;
+		harfbuzz)
+			shift
+			BUILD_HARFBUZZ=1
+			;;
 		ass)
 			shift
 			BUILD_FONTCONFIG=1
@@ -157,6 +161,7 @@ while : ; do
 			BUILD_FLAC=1
 			BUILD_VORBIS=1
 			BUILD_OGG=1
+			BUILD_HARFBUZZ=1
 			BUILD_FRIBIDI=1
 			BUILD_FONTCONFIG=1
 			BUILD_ASS=1
@@ -197,7 +202,27 @@ while : ; do
 			export ANDROID_NATIVE_API_LEVEL=$1
 			shift
 			;;
-		*)
+		--min-sdk)
+			shift
+			export ANDROID_MIN_SDK_VERSION=$1
+			shift
+			;;
+		--target-sdk)
+			shift
+			export TARGET_SDK_VERSION=$1
+			shift
+			;;
+		--list-configs)
+			shift
+			ls -1 android-utilities/config
+			exit 0
+			;;
+		--config)
+			shift
+			source android-utilities/config/$1
+			shift
+			;;
+			*)
 			echo "$0 lib [lib...]"
 			echo " where lib is one or more of"
 			echo "   all"
@@ -234,12 +259,15 @@ while : ; do
 	esac
 done
 
-QTMAJORVERSION=5.14
-QTVERSION=$QTMAJORVERSION.1
+#QTMAJORVERSION=5.14
+#QTVERSION=$QTMAJORVERSION.1
+QTMAJORVERSION=5.15
+QTVERSION=$QTMAJORVERSION.6
 BUILD_WEBKIT=0
 export ANDROID_NATIVE_API_LEVEL=${ANDROID_NATIVE_API_LEVEL:-29}
 export ANDROID_SDK_PLATFORM=android-$ANDROID_NATIVE_API_LEVEL
 export ANDROID_NDK_PLATFORM=android-$ANDROID_NATIVE_API_LEVEL
+export ANDROID_API_VERSION=${ANDROID_API_VERSION:-$ANDROID_SDK_PLATFORM}
 # for cmake projects
 export ANDROID_API_DEF="-D__ANDROID_API__=$ANDROID_NATIVE_API_LEVEL"
 
@@ -280,9 +308,17 @@ INSTALLROOT=$BASE/libsinstall$TOOLCHAIN_SUFFIX
 QTINSTALLROOT=$BASE/libsinstall$TOOLCHAIN_SUFFIX/qt
 QTBUILDROOT=build$TOOLCHAIN_SUFFIX
 LIBSDIR=libs$TOOLCHAIN_SUFFIX
-
+CROSSPATH_LLVM="$CROSSPATH2"
+if [ ! -e "${CROSSPATH_LLVM}ar" ]; then
+	CROSSPATH_LLVM="$CROSSPATH/llvm-"
+fi
+CROSSPATH_LD="$CROSSPATH2"
+if [ ! -e "${CROSSPATH2}ld" ]; then
+	CROSSPATH_LD="$CROSSPATH/"
+fi
 #EXTRA_QT_CONFIGURE_ARGS="$EXTRA_QT_CONFIGURE_ARGS -after 'QMAKE_LFLAGS_SHLIB*=-rdynamic -frtti' -after 'QMAKE_LFLAGS_APP*=-rdynamic -frtti'"
 #EXTRA_QT_CONFIGURE_ARGS="$EXTRA_QT_CONFIGURE_ARGS -late 'QMAKE_LFLAGS_SHLIB*=-frtti -fexceptions' -late 'QMAKE_LFLAGS_APP*=-rdynamic -frtti -fexceptions'"
+EXTRA_QT_CONFIGURE_ARGS="$EXTRA_QT_CONFIGURE_ARGS \"-late QMAKE_RANLIB=${CROSSPATH_LLVM}ranlib\""
 CPUOPT="-march=$CPU_ARCH"
 CMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake
 
@@ -371,7 +407,7 @@ setup_lib() {
 		tar xf "../tarballs/$F"
 		pushd "$D"
 		git init
-		git add --all
+		git add --all -f
 		git commit -m"initial"
 		popd
 	fi
@@ -420,7 +456,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE \
       -DCMAKE_PREFIX_PATH="$INSTALLROOT" \
       -DSOVERSION="" \
       .. && \
-      cmake --build . && \
+      cmake --build . -j$NCPUS && \
       cmake --build . --target install
       ERR=$?
 
@@ -433,7 +469,7 @@ return $ERR
 }
 
 build_freetype() {
-FREETYPE=freetype-2.10.1
+FREETYPE=freetype-2.12.1
 echo -e "\n**** $FREETYPE ****"
 setup_lib http://download.savannah.gnu.org/releases/freetype/$FREETYPE.tar.xz $FREETYPE
 pushd $FREETYPE
@@ -586,11 +622,10 @@ if [ $CLEAN == 1 ]; then
 fi
 STRIP=${CROSSPATH2}strip \
 	CC=${CROSSPATH3}clang \
-	RANLIB=${CROSSPATH2}ranlib \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
 	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	AR=${CROSSPATH_LLVM}ar \
 	CFLAGS="--sysroot=$SYSROOT $ANDROID_API_DEF" \
-	CPP1=${CROSSPATH2}cpp \
 	CPPFLAGS=$CFLAGS \
 	./configure --build=x86_64 --host=$BUILD_HOST --prefix=$INSTALLROOT --with-sysroot=$SYSROOT --enable-shared=yes --enable-static=yes &&
 	make -j$NCPUS $MAKEDEFS install-lib
@@ -602,8 +637,11 @@ return $ERR
 }
 
 build_mariadb() {
+MARIADB_CONNECTOR_C_VERSION=3.3.3
+#MARIADB_CONNECTOR_C_VERSION=3.3.0
+#MARIADB_CONNECTOR_C_VERSION=3.2.6
 #MARIADB_CONNECTOR_C_VERSION=3.1.6
-MARIADB_CONNECTOR_C_VERSION=2.3.7
+#MARIADB_CONNECTOR_C_VERSION=2.3.7
 #MARIADB_CONNECTOR_C_VERSION=2.2.3
 #MARIADB_CONNECTOR_C_VERSION=2.1.0
 MARIADB_CONNECTOR_C=mariadb-connector-c-$MARIADB_CONNECTOR_C_VERSION-src
@@ -722,8 +760,8 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE \
       -DICONV_LIBRARY=$INSTALLROOT/lib/libiconv.a \
       .. && \
       make VERBOSE=1 libmariadb && \
-      cmake --build ./libmariadb  --target install && \
-      cmake --build ./include  --target install && \
+      cmake --build ./libmariadb -j$NCPUS --target install && \
+      cmake --build ./include -j$NCPUS --target install
       ERR=$?
 
       #cp "$INSTALLROOT"/lib/mariadb/lib{mariadb,mysql}client.a
@@ -787,7 +825,6 @@ fi
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT" \
 	CC="${CROSSPATH3}clang" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
 	--enable-shared \
@@ -860,12 +897,11 @@ CPUOPT="-march=$CPU_ARCH"
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	LDFLAGS="-lz" \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
@@ -924,13 +960,17 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_MAKE_PROGRAM=make \
       -DCMAKE_PREFIX_PATH="$INSTALLROOT" \
+      -DCMAKE_INCLUDE_PATH="$INSTALLROOT/include" \
+      -DCMAKE_LIBRARY_PATH="$INSTALLROOT/lib" \
+      -DIconv_INCLUDE_DIR="$INSTALLROOT/include" \
+      -DIconv_LIBRARY="$INSTALLROOT/lib/libiconv.a" \
       -DBUILD_SHARED_LIBS=ON \
       -DEXIV2_ENABLE_XMP=OFF \
       -DEXIV2_BUILD_SAMPLES=OFF \
       -DEXIV2_BUILD_EXIV2_COMMAND=OFF \
       .. && \
       sed -i.bak -e 's/-static-libstdc++//;s/ [^ ]*libc\.a//' src/CMakeFiles/exiv2lib.dir/link.txt && \
-      cmake --build . && \
+      cmake --build . -j$NCPUS && \
       cmake --build . --target install
       ERR=$?
 mv -f ${INSTALLROOT}/lib/libexiv2.so ${INSTALLROOT}/lib/libexiv2.14.so
@@ -943,7 +983,7 @@ return $ERR
 
 build_flac() {
 rm -rf build
-FLAC=flac-1.3.3
+FLAC=flac-1.3.4
 echo -e "\n**** $FLAC ****"
 setup_lib https://ftp.osuosl.org/pub/xiph/releases/flac/$FLAC.tar.xz $FLAC
 pushd $FLAC
@@ -954,18 +994,17 @@ if [ $CLEAN == 1 ]; then
 fi
 
 local CPUOPT=
-CPUOPT="-march=$CPU_ARCH"
+CPUOPT="-march=$CPU_ARCH -fPIC"
 
 ./configure --help
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--with-sysroot=$INSTALLROOT \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
@@ -973,7 +1012,7 @@ CPUOPT="-march=$CPU_ARCH"
 	--enable-shared \
 	--enable-static &&
 	make -C src/libFLAC -j$NCPUS &&
-	make -C include install
+	make -C include install &&
 	make -C src/libFLAC install
 	ERR=$?
 
@@ -987,7 +1026,7 @@ return $ERR
 
 build_ogg() {
 rm -rf build
-LIBOGG=libogg-1.3.4
+LIBOGG=libogg-1.3.5
 echo -e "\n**** $LIBOGG ****"
 setup_lib https://ftp.osuosl.org/pub/xiph/releases/ogg/$LIBOGG.tar.xz $OGG
 pushd $LIBOGG
@@ -1001,18 +1040,17 @@ local CPUOPT=
 if [ $ARM64 == 1 ]; then
 	CPUOPT="-march=$CPU_ARCH"
 else
-	CPUOPT="-march=$CPU_ARCH"
+	CPUOPT="-march=$CPU_ARCH -fPIC"
 fi
 
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
@@ -1030,7 +1068,7 @@ return $ERR
 
 build_vorbis() {
 rm -rf build
-LIBVORBIS=libvorbis-1.3.6
+LIBVORBIS=libvorbis-1.3.7
 echo -e "\n**** $LIBVORBIS ****"
 setup_lib https://ftp.osuosl.org/pub/xiph/releases/vorbis/$LIBVORBIS.tar.xz $LIBVORBIS
 pushd $LIBVORBIS
@@ -1050,12 +1088,11 @@ fi
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
@@ -1087,19 +1124,18 @@ local CPUOPT=
 if [ $ARM64 == 1 ]; then
 	CPUOPT="-march=$CPU_ARCH"
 else
-	CPUOPT="-march=$CPU_ARCH"
+	CPUOPT="-march=$CPU_ARCH -fPIC"
 fi
 echo $INSTALLROOT
 ./configure \
 	CFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
 	LDFLAGS="-L$INSTALLROOT/lib $OPTS -pie -Wl,-rpath-link=$SYSROOT/usr/lib -Wl,-rpath-link=$SYSROOTARCH/usr/lib -Wl,-rpath-link=$INSTALLROOT/lib" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
@@ -1144,13 +1180,12 @@ PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 LDFLAGS="-L $INSTALLROOT/lib" \
-RANLIB=${CROSSPATH2}ranlib \
-OBJDUMP=${CROSSPATH2}objdump \
-AR=${CROSSPATH2}ar \
-LD=${CROSSPATH2}ld \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
+LD=${CROSSPATH_LD}ld \
 CC="${CROSSPATH3}clang" \
 CXX="${CROSSPATH3}clang++" \
-CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 ./configure \
 	--build=x86_64-linux-gnu \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
@@ -1168,9 +1203,9 @@ CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 
 #CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 #CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-#RANLIB=${CROSSPATH2}ranlib \
-#OBJDUMP=${CROSSPATH2}objdump \
-#AR=${CROSSPATH2}ar \
+#RANLIB=${CROSSPATH_LLVM}ranlib \
+#OBJDUMP=${CROSSPATH_LLVM}objdump \
+#AR=${CROSSPATH_LLVM}ar \
 #LD=$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-ld \
 #CC="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-gcc" \
 #CXX="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-g++" \
@@ -1206,12 +1241,11 @@ fi
 CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 LDFLAGS="-L $INSTALLROOT/lib" \
-RANLIB=${CROSSPATH2}ranlib \
-OBJDUMP=${CROSSPATH2}objdump \
-AR=${CROSSPATH2}ar \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
 CC="${CROSSPATH3}clang" \
 CXX="${CROSSPATH3}clang++" \
-CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 autoreconf --force --install --verbose &&
 ./configure \
 	--build=x86_64-linux-gnu \
@@ -1255,13 +1289,12 @@ PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF -isystem $INSTALLROOT/include" \
 CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF -isystem $INSTALLROOT/include" \
 LDFLAGS="-L$INSTALLROOT/lib" \
-RANLIB=${CROSSPATH2}ranlib \
-OBJDUMP=${CROSSPATH2}objdump \
-AR=${CROSSPATH2}ar \
-LD=${CROSSPATH2}ld \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
+LD=${CROSSPATH_LD}ld \
 CC="${CROSSPATH3}clang" \
 CXX="${CROSSPATH3}clang++" \
-CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 ./configure \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--with-sysroot=$SYSROOT \
@@ -1305,12 +1338,11 @@ CPUOPT="-march=$CPU_ARCH"
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
 	--with-libxml-prefix=$INSTALLROOT \
@@ -1332,13 +1364,17 @@ return $ERR
 build_fontconfig() {
 rm -rf build
 # note later versions require freetype2 update
-FONTCONFIG_VERSION=2.13.92
+FONTCONFIG_VERSION=2.13.96
 FONTCONFIG=fontconfig-$FONTCONFIG_VERSION
 echo -e "\n**** $FONTCONFIG ****"
-setup_lib https://github.com/freedesktop/fontconfig/archive/$FONTCONFIG_VERSION.tar.gz $FONTCONFIG
+#setup_lib https://github.com/freedesktop/fontconfig/archive/$FONTCONFIG_VERSION.tar.gz $FONTCONFIG
+setup_lib https://gitlab.freedesktop.org/fontconfig/fontconfig/-/archive/$FONTCONFIG_VERSION/fontconfig-$FONTCONFIG_VERSION.tar.bz2
 pushd $FONTCONFIG
 OPATH=$PATH
 
+if [ -e "$BASE"/patches/${FONTCONFIG}.patch ]; then
+	patch -p1 -Nt --no-backup-if-mismatch -r - < "$BASE"/patches/${FONTCONFIG}.patch || true
+else
 { patch -p1 -Nt || true; } <<'END'
 diff --git a/src/fcatomic.c b/src/fcatomic.c
 index 2ce419f..d12d324 100644
@@ -1390,6 +1426,8 @@ index b65492d..600e42e 100644
  	memcpy (p, s, len);
  	p += len;
 END
+fi
+
 if [ $CLEAN == 1 ]; then
 	# move generated fcblanks.h aside before clean
 	# so unicode.org does not have to be spammed
@@ -1410,13 +1448,12 @@ PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 CFLAGS="-isysroot $SYSROOT $CPUOPT $OPTS $ANDROID_API_DEF -DFONTCONFIG_FILE=\\\"~/fonts.conf\\\"" \
 CXXFLAGS="-isysroot $SYSROOT $CPUOPT $OPTS $ANDROID_API_DEF -DFONTCONFIG_FILE=\\\"~/fonts.conf\\\"" \
 LDFLAGS="-L$INSTALLROOT/lib $OPTS -pie -Wl,-rpath-link=$SYSROOT/usr/lib -Wl,-rpath-link=$SYSROOTARCH/usr/lib -Wl,-rpath-link=$INSTALLROOT/lib -llog" \
-RANLIB=${CROSSPATH2}ranlib \
-OBJDUMP=${CROSSPATH2}objdump \
-AR=${CROSSPATH2}ar \
-LD=${CROSSPATH2}ld \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
+LD=${CROSSPATH_LD}ld \
 CC="${CROSSPATH3}clang" \
 CXX="${CROSSPATH3}clang++" \
-CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 ./autogen.sh \
 	--build=x86_64-linux-gnu \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
@@ -1466,13 +1503,12 @@ PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 LDFLAGS="-L$INSTALLROOT/lib" \
-RANLIB=${CROSSPATH2}ranlib \
-OBJDUMP=${CROSSPATH2}objdump \
-AR=${CROSSPATH2}ar \
-LD=${CROSSPATH2}ld \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
+LD=${CROSSPATH_LD}ld \
 CC="${CROSSPATH3}clang" \
 CXX="${CROSSPATH3}clang++" \
-CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 ./configure \
 	--build=x86_64-linux-gnu \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
@@ -1494,9 +1530,59 @@ popd
 return $ERR
 }
 
+build_harfbuzz() {
+rm -rf build
+HARFBUZZ_VERSION=5.3.1
+HARFBUZZ=harfbuzz-$HARFBUZZ_VERSION
+echo -e "\n**** $HARFBUZZ ****"
+setup_lib https://github.com/harfbuzz/harfbuzz/releases/download/$HARFBUZZ_VERSION/$HARFBUZZ.tar.xz $HARFBUZZ
+pushd $HARFBUZZ
+OPATH=$PATH
+
+if [ $CLEAN == 1 ]; then
+	make distclean || true
+fi
+
+#local CPUOPT=
+#if [ $ARM64 == 1 ]; then
+#	CPUOPT="-march=$CPU_ARCH"
+#else
+#	CPUOPT="-march=$CPU_ARCH"
+#fi
+#./autogen.sh &&
+PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
+CFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
+CXXFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
+LDFLAGS="-L$INSTALLROOT/lib" \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
+LD=${CROSSPATH_LD}ld \
+CC="${CROSSPATH3}clang" \
+CXX="${CROSSPATH3}clang++" \
+./configure \
+	--build=x86_64-linux-gnu \
+	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
+	--prefix=$INSTALLROOT \
+	--with-sysroot=$SYSROOT \
+	--disable-dependency-tracking \
+	--disable-require-system-font-provider \
+	--enable-shared \
+	--enable-static &&
+	cd src &&
+	make -j$NCPUS lib &&
+	make install-libLTLIBRARIES install-pkgincludeHEADERS install-pkgconfigDATA
+	ERR=$?
+
+PATH=$OPATH
+unset OPATH
+popd
+return $ERR
+}
+
 build_ass() {
 rm -rf build
-LIBASS_VERSION=0.14.0
+LIBASS_VERSION=0.17.0
 LIBASS=libass-$LIBASS_VERSION
 echo -e "\n**** $LIBASS ****"
 setup_lib https://github.com/libass/libass/releases/download/$LIBASS_VERSION/$LIBASS.tar.xz $LIBASS
@@ -1518,18 +1604,16 @@ PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 CFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
 CXXFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
 LDFLAGS="-L$INSTALLROOT/lib" \
-RANLIB=${CROSSPATH2}ranlib \
-OBJDUMP=${CROSSPATH2}objdump \
-AR=${CROSSPATH2}ar \
-LD=${CROSSPATH2}ld \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
+LD=${CROSSPATH_LD}ld \
 CC="${CROSSPATH3}clang" \
 CXX="${CROSSPATH3}clang++" \
-CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 ./configure \
 	--build=x86_64-linux-gnu \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
-	--with-sysroot=$SYSROOT \
 	--disable-dependency-tracking \
 	--disable-require-system-font-provider \
 	--enable-shared \
@@ -1567,10 +1651,10 @@ OPATH=$PATH
 # 	*)
 #END
 export PATH="$PATH:$CROSSPATH"
-RANLIB=${CROSSPATH2}ranlib \
-OBJDUMP=${CROSSPATH2}objdump \
-AR=${CROSSPATH2}ar \
-LD=${CROSSPATH2}ld \
+RANLIB=${CROSSPATH_LLVM}ranlib \
+OBJDUMP=${CROSSPATH_LLVM}objdump \
+AR=${CROSSPATH_LLVM}ar \
+LD=${CROSSPATH_LD}ld \
 CC="${CROSSPATH3}clang" \
 CXX="${CROSSPATH3}clang++" \
 ./configure \
@@ -1615,7 +1699,7 @@ cmake -DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE \
       -DCMAKE_PREFIX_PATH="$INSTALLROOT" \
       -DBUILD_SHARED_LIBS=ON \
       .. && \
-      cmake --build . && \
+      cmake --build . -j$NCPUS && \
       cmake --build . --target install
       ERR=$?
 
@@ -1627,8 +1711,10 @@ return $ERR
 
 build_icu() {
 rm -rf build
-echo -e "\n**** icu 65.1 ****"
-setup_lib https://github.com/unicode-org/icu/releases/download/release-65-1/icu4c-65_1-src.tgz icu
+#echo -e "\n**** icu 65.1 ****"
+#setup_lib https://github.com/unicode-org/icu/releases/download/release-65-1/icu4c-65_1-src.tgz icu
+echo -e "\n**** icu 70.1 ****"
+setup_lib https://github.com/unicode-org/icu/releases/download/release-70-1/icu4c-70_1-src.tgz icu
 pushd icu
 OPATH=$PATH
 ICUPATH=$PWD
@@ -1765,9 +1851,11 @@ return $ERR
 
 build_libsamplerate() {
 rm -rf build
-LIBSAMPLERATE=libsamplerate-0.1.9
+LIBSAMPLERATE_VERSION=0.2.2
+LIBSAMPLERATE=libsamplerate-$LIBSAMPLERATE_VERSION
 echo -e "\n**** $LIBSAMPLRATE ****"
-setup_lib http://www.mega-nerd.com/SRC/$LIBSAMPLERATE.tar.gz $LIBSAMPLERATE
+#setup_lib http://www.mega-nerd.com/SRC/$LIBSAMPLERATE.tar.gz $LIBSAMPLERATE
+setup_lib https://github.com/libsndfile/libsamplerate/releases/download/$LIBSAMPLERATE_VERSION/$LIBSAMPLERATE.tar.xz $LIBSAMPLERATE
 pushd $LIBSAMPLERATE
 OPATH=$PATH
 { patch -p0 -Nt -r - || true; } <<'END'
@@ -1815,12 +1903,12 @@ local CPUOPT=
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
+	LD=${CROSSPATH_LD}ld \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
 	--enable-shared \
@@ -1837,52 +1925,67 @@ return $ERR
 
 build_libsoundtouch() {
 rm -rf build
-LIBSOUNDTOUCHVER=2.3.1
-LIBSOUNDTOUCH=soundtouch-$LIBSOUNDTOUCHVER
-LIBSOUNDTOUCHSRC="https://codeberg.org/soundtouch/soundtouch/archive/$LIBSOUNDTOUCHVER.tar.gz"
-echo -e "\n**** $LIBSOUNDTOUCH ****"
-[ -d ../tarballs ] || mkdir -p ../tarballs
-if [ ! -e "../tarballs/$LIBSOUNDTOUCH.tar.gz" ]; then
-    pushd ../tarballs
-    wget --no-check-certificate -O "$LIBSOUNDTOUCH.tar.gz" "$LIBSOUNDTOUCHSRC"
-    popd
-fi
-tar xf "../tarballs/$LIBSOUNDTOUCH.tar.gz"
-rm -rf $LIBSOUNDTOUCH
-mv soundtouch $LIBSOUNDTOUCH
+#LIBSOUNDTOUCH=soundtouch-2.3.1-e1f315f5358d9db5cee35a7a2886425489fcefe8
+#LIBSOUNDTOUCH_URL https://gitlab.com/soundtouch/soundtouch/-/archive/2.3.1/$LIBSOUNDTOUCH.tar.gz $LIBSOUNDTOUCH
+LIBSOUNDTOUCH=soundtouch
+LIBSOUNDTOUCH_VERSION=2.3.1
+LIBSOUNDTOUCH_URL="https://codeberg.org/soundtouch/soundtouch/archive/$LIBSOUNDTOUCH_VERSION.tar.gz"
+echo -e "\n**** $LIBSOUNDTOUCH $LIBSOUNDTOUCH_VERSION ****"
+setup_lib $LIBSOUNDTOUCH_URL $LIBSOUNDTOUCH
 pushd $LIBSOUNDTOUCH
-git init
-git add --all
-git commit -m"initial"
 OPATH=$PATH
 { patch -p1 -Nt -r - || true; } <<'END'
 diff --git a/bootstrap b/bootstrap
-index 7534e44..813d02d 100755
+index 7534e44..2ee0915 100755
 --- a/bootstrap
 +++ b/bootstrap
-@@ -11,7 +11,7 @@ then
- 	then
- 		configure && $0 --clean
- 	else 
--		bootstrap && configure && $0 --clean
-+		./bootstrap && configure && $0 --clean
- 	fi
+@@ -4,14 +4,14 @@ unset ACLOCAL
+ 
+ if [ "$1" = "--clean" ]
+ then
+-       if [ -a Makefile ]
++       if [ -f Makefile ]
+        then
+                make maintainer-clean
+-       elif [ -a configure ]
++       elif [ -f configure ]
+        then
+-               configure && $0 --clean
++               ./configure && $0 --clean
+        else 
+-               bootstrap && configure && $0 --clean
++               ./bootstrap && ./configure && $0 --clean
+        fi
  
  	rm -rf configure libtool aclocal.m4 `find . -name Makefile.in` autom4te*.cache config/config.guess config/config.h.in config/config.sub config/depcomp config/install-sh config/ltmain.sh config/missing config/mkinstalldirs config/stamp-h config/stamp-h.in
+diff --git a/configure.ac b/configure.ac
+index d557fb6..497fa6d 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -258,7 +258,7 @@ AC_FUNC_MALLOC
+ AC_TYPE_SIGNAL
+ 
+ dnl make -lm get added to the LIBS
+-AC_CHECK_LIB(m, sqrt,,AC_MSG_ERROR([compatible libc math library not found])) 
++#AC_CHECK_LIB(m, sqrt,,AC_MSG_ERROR([compatible libc math library not found])) 
+ 
+ dnl add whatever functions you might want to check for here
+ #AC_CHECK_FUNCS([floor ftruncate memmove memset mkdir modf pow realpath sqrt strchr strdup strerror strrchr strstr strtol])
 END
 if [ $CLEAN == 1 ]; then
 	./bootstrap --clean || true
 fi
 
+LOPTS="-fPIC"
 ./bootstrap && ./configure \
-	CFLAGS="-isysroot $SYSROOT $ANDROID_API_DEF" \
-	CXXFLAGS="-isysroot $SYSROOT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	CFLAGS="-isysroot $SYSROOT $ANDROID_API_DEF $LOPTS" \
+	CXXFLAGS="-isysroot $SYSROOT $ANDROID_API_DEF $LOPTS" \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
+	LD=${CROSSPATH_LD}ld \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
 	--enable-shared \
@@ -1918,12 +2021,12 @@ local CPUOPT=
 ./configure \
 	CFLAGS="-isysroot $SYSROOT -isystem $INSTALLROOT/include $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
+	LD=${CROSSPATH_LD}ld \
 	LDFLAGS="-L$INSTALLROOT/lib" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
@@ -1958,12 +2061,12 @@ fi
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
+	LD=${CROSSPATH_LD}ld \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
@@ -1982,12 +2085,12 @@ fi
 ./configure \
 	CFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
 	CXXFLAGS="-isysroot $SYSROOT $CPUOPT $ANDROID_API_DEF" \
-	RANLIB=${CROSSPATH2}ranlib \
-	OBJDUMP=${CROSSPATH2}objdump \
-	AR=${CROSSPATH2}ar \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
+	OBJDUMP=${CROSSPATH_LLVM}objdump \
+	AR=${CROSSPATH_LLVM}ar \
+	LD=${CROSSPATH_LD}ld \
 	CC="${CROSSPATH3}clang" \
 	CXX="${CROSSPATH3}clang++" \
-	CPP1="$CROSSPATH/$MY_ANDROID_NDK_TOOLS_PREFIX-cpp" \
 	PKG_CONFIG_PATH=$PKG_CONFIG_LIBDIR/pkgconfig \
 	--host=$MY_ANDROID_NDK_TOOLS_PREFIX \
 	--prefix=$INSTALLROOT \
@@ -2020,6 +2123,12 @@ if [ ${QTMAJORVERSION%.*} -ge 6 -o ${QTMAJORVERSION#*.} -gt 9 ]; then
 	QT_SOURCE_DIR=qt-everywhere-src-$QTVERSION
 fi
 QT_URL=https://download.qt.io/archive/qt/$QTMAJORVERSION/$QTVERSION/single/$QT_SOURCE_DIR.tar.xz
+if [ ${QTMAJORVERSION} == "5.15" -a ${QTMAJORVERSION%.*} -ge 3 ]; then
+	# special case, mismatch of tarball and root directory names
+	QT_DOWNLOAD_NAME=qt-everywhere-opensource-src-$QTVERSION
+	QT_SOURCE_DIR=qt-everywhere-src-$QTVERSION
+	QT_URL=https://download.qt.io/archive/qt/$QTMAJORVERSION/$QTVERSION/single/$QT_DOWNLOAD_NAME.tar.xz
+fi
 if [ $BUILD_WEBKIT == 1 ]; then
 	if [ $OS_WEBKIT == 1 ]; then
 		if [ $QTVERSION != "5.9.1" ]; then
@@ -2711,6 +2820,9 @@ configure_qt5() {
 	export ANDROID_TARGET_ARCH=$ARMEABI
 	export ANDROID_ABIS=$ARMEABI
 	export ANDROID_NDK_TOOLS_PREFIX=$MY_ANDROID_NDK_TOOLS_PREFIX
+	if [ ${ANDROID_API_VERSION/*-/} -lt 29 ]; then
+		export ANDROID_API_VERSION=android-29
+	fi
 	#export ANDROID_NDK_TOOLCHAIN_PATH
 	#export ANDROID_NDK_PLATFORM_ROOT_PATH="$SYSROOT"
 	export ANDROID_INSTALL_LIBS="/lib"
@@ -2771,12 +2883,13 @@ configure_qt5() {
 	SKIPS="$SKIPS -skip qtx11extras"
 	SKIPS="$SKIPS -skip qtxmlpatterns"
 
-	SKIPS="$SKIPS -no-make qtprintsupport"
-	SKIPS="$SKIPS -no-make qttest"
+	SKIPS="$SKIPS -nomake qtprintsupport"
+	SKIPS="$SKIPS -nomake qttest"
 
 	#../configure -list-features
-	#../configure -h
+	../configure -h
 	MAKEFLAGS="-j$NCPUS" \
+	RANLIB=${CROSSPATH_LLVM}ranlib \
 	../configure \
 		-xplatform android-clang \
 		-opensource -confirm-license \
@@ -2793,6 +2906,7 @@ configure_qt5() {
 		-L "$INSTALLROOT/lib" \
 		-L "$INSTALLROOT/lib/mariadb" \
 		-plugin-sql-mysql \
+		-plugin-android \
 		-qt-sqlite \
 		$SKIPS \
 		-feature-rtti \
@@ -2803,6 +2917,7 @@ configure_qt5() {
 		$EXTRA_QT_CONFIGURE_ARGS \
 
 	ERR=$?
+	export ANDROID_API_VERSION=${ANDROID_API_VERSION:-$ANDROID_SDK_PLATFORM}
 
 	popd
 	PATH=$OPATH
@@ -2861,6 +2976,9 @@ build_qt5() {
 	export ROOT_WEBKIT_DIR="`pwd`"
 	export ANDROID_INSTALL_LIBS="/lib"
 	export SQLITE3SRCDIR="`readlink -f qtbase/src/3rdparty/sqlite`/"
+	if [ ${ANDROID_API_VERSION/*-/} -lt 29 ]; then
+		export ANDROID_API_VERSION=android-29
+	fi
 
 	unset CPPFLAGS
 	unset LDFLAGS
@@ -2886,6 +3004,7 @@ build_qt5() {
 
 	popd
 
+	export ANDROID_API_VERSION=${ANDROID_API_VERSION:-$ANDROID_SDK_PLATFORM}
 	unset CPPFLAGS
 	unset LDFLAGS
 	unset CXXPPFLAGS
@@ -3174,6 +3293,7 @@ pushd $LIBSDIR
 [ -n "$BUILD_LIBZIP" ] && build_libzip
 [ -n "$BUILD_FONTCONFIG" ] && build_fontconfig
 [ -n "$BUILD_FRIBIDI" ] && build_fribidi
+[ -n "$BUILD_HARFBUZZ" ] && build_harfbuzz
 [ -n "$BUILD_ASS" ] && build_ass
 [ -n "$BUILD_LIBSAMPLERATE" ] && build_libsamplerate
 [ -n "$BUILD_LIBSOUNDTOUCH" ] && build_libsoundtouch

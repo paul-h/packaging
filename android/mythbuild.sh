@@ -8,6 +8,7 @@ SHADOW_BUILD=0
 BUILD_PLUGINS=0
 
 export ANDROID_NDK_ROOT=$ANDROID_NDK
+export ANDROID_NDK_HOME=$ANDROID_NDK
 
 MYMYTHPATH="`readlink -f ../../mythtv`"
 export NCPUS=$(nproc)
@@ -72,15 +73,49 @@ case "$1" in
 		export ANDROID_NATIVE_API_LEVEL=$1
 		shift
 		;;
+	--min-sdk)
+		shift
+		export ANDROID_MIN_SDK_VERSION=$1
+		shift
+		;;
+	--target-sdk)
+		shift
+		export TARGET_SDK_VERSION=$1
+		shift
+		;;
 	--plugins)
 		shift
 		BUILD_PLUGINS=1
+		;;
+	--list-configs)
+		shift
+		ls -1 android-utilities/config
+		exit 0
+		;;
+	--config)
+		shift
+		source android-utilities/config/$1
+		shift
 		;;
 	"")
 		break
 		;;
 	-*)
-		echo "unknown option $1"
+		echo "Unknown option $1"
+		echo "Valid options are "
+		echo "  -no-neon|--no-neon"
+		echo "  -unsafe-neon|--unsafe-neon"
+		echo "  -cortex-a9|--cortex-a9"
+		echo "  -cpus|--cpus <#jobs>"
+		echo "  --arm"
+		echo "  --oldarm"
+		echo "  --arm64"
+		echo "  --sdk <num>          sdk to use to build"
+		echo "  --min-sdk            minimum sdk supported"
+		echo "  --target-sdk         target sdk to build for"
+		echo "  --list-config        list available configs"
+		echo "  --config <config>    use settings from config"
+		echo "  --plugins            build plugins"
 		exit 1
 		;;
 	*)
@@ -93,10 +128,18 @@ done
 # I want to be able to export it ahead of time instead of
 # passing in sdk parameter.
 if [[ "$ANDROID_NATIVE_API_LEVEL" == "" ]] ; then
-    export ANDROID_NATIVE_API_LEVEL=29
+	export ANDROID_NATIVE_API_LEVEL=29
 fi    
 
+if [[ "$TARGET_SDK_VERSION" == "" ]] ; then
+	export TARGET_SDK_VERSION=29
+fi
+if [[ "$ANDROID_MIN_SDK_VERSION" == "" ]] ; then
+	export ANDROID_MIN_SDK_VERSION=$TARGET_SDK_VERSION
+fi
+
 export ANDROID_NDK_PLATFORM=android-$ANDROID_NATIVE_API_LEVEL
+export ANDROID_API_VERSION=android-$ANDROID_NATIVE_API_LEVEL
 
 if [ $ARM64 == 1 ]; then
 	TOOLCHAIN_SUFFIX=64
@@ -138,10 +181,19 @@ CROSSPATH2=$CROSSPATH/$ANDROID_NDK_TOOLS_PREFIX-
 CROSSPATH3=$CROSSPATH/$ANDROID_NDK_TOOLS_CC_PREFIX${ANDROID_NATIVE_API_LEVEL}-
 CROSSCC=$ANDROID_NDK_TOOLS_CC_PREFIX${ANDROID_NATIVE_API_LEVEL}-clang
 LIB_ANDROID_PATH="$ANDROID_NDK_TOOLCHAIN_PATH/$ANDROID_NDK_TOOLS_PREFIX/$LIB_ANDROID_REL_PATH"
+CROSSPATH_LLVM="$CROSSPATH2"
+if [ ! -e "${CROSSPATH_LLVM}ar" ]; then
+	CROSSPATH_LLVM="$CROSSPATH/llvm-"
+fi
+CROSSPATH_LD="$CROSSPATH2"
+if [ ! -e "${CROSSPATH2}ld" ]; then
+	CROSSPATH_LD="$CROSSPATH/"
+fi
 
 EXTRASPECS="CONFIG+=single_arch CONFIG+=rtti CONFIG+=exceptions ANDROID_ABIS=$ANDROID_TARGET_ARCH -after QMAKE_CFLAGS-=-mfpu=vfp QMAKE_CXXFLAGS-=-mfpu=vfp QMAKE_LFLAGS*=-rdynamic QMAKE_LFLAGS*=-frtti" # QMAKE_CXXFLAGS+=-frtti QMAKE_CXXFLAGS+=-fexceptions QMAKE_LFLAGS+=-frtti"
 EXTRA_ANDROID_LIBS="libcrystax.so libpng.so libjpeg.so"
 #EXTRASPECS="$EXTRASPECS -d 1"
+EXTRA_DEFINES="-DVK_USE_PLATFORM_ANDROID_KHR"
 
 if [ -z "$MYTHLIBVERSION" ]; then
 	export MYTHLIBVERSION=31
@@ -191,6 +243,11 @@ case "$1" in
 		rm $MYMYTHBUILDPATH/stamp_configure_android
 		shift
 		;;
+	reconfig_only*)
+		rm $MYMYTHBUILDPATH/stamp_configure_android
+		shift
+		exit 0
+		;;
 	"clean" )
 		cd $MYMYTHBUILDPATH
 		rm stamp_configure_android
@@ -224,6 +281,16 @@ case "$1" in
 		;;
 esac
 
+function deploy-fontconfig() {
+	set -x
+	[ -d "$INSTALLROOT/assets/mythtv/conf.d" ] || mkdir -p $INSTALLROOT/assets/mythtv/conf.d
+	for f in "$INSTALLROOT/etc/fonts/conf.d"/* ; do
+		fb=$(basename "$f")
+		cp "$f" "$INSTALLROOT/assets/mythtv/conf.d/$fb"
+	done
+	set +x
+}
+
 function deploy-extra-libs() {
 	[ -d "$INSTALLROOT/assets" ] || mkdir $INSTALLROOT/assets
 	pushd $INSTALLROOT/assets
@@ -245,6 +312,21 @@ function deploy-extra-libs() {
 	popd
 }
 
+function create_helper_headers() {
+	pushd "$INSTALLROOT/include"
+	#rm -rf vulkan
+	rm vulkan_beta.h
+	local F="$ANDROID_NDK_ROOT/sources/third_party/vulkan/src/include/vulkan/vulkan_beta.h"
+	if [ -e "$F" ]; then
+		#ln -s $ANDROID_NDK_ROOT/sources/third_party/vulkan/src/include/vulkan/vulkan_beta.h .
+		:
+	fi
+	echo <<-END > vulkan_beta.h
+	# dont need the real one
+	END
+	popd
+}
+
 function makeapk() {
 	$ANDROID_SDK_ROOT/tools/android update project \
 		--path $INSTALLROOT/ \
@@ -260,29 +342,35 @@ function bundle_apk() {
 	# plugins are not automatically installed so copy them
 	for i in $MYTHINSTALLROOT/lib/libmythpluginmyth{archive,netvision,news,browser,game,music,zoneminder}.so \
 		$MYTHINSTALLROOT/lib/libmyth{archivehelper,fillnetvision}.so \
-		$MYTHINSTALLROOT/lib/lib{ogg,vorbis,vorbisfile,vorbisenc,FLAC,fontconfig,icui18n60,icuuc60,icudata60,icudata60,iconv,ass,fribidi,exiv2,fftw*,zip,SoundTouch}.so \
+		$MYTHINSTALLROOT/lib/lib{ogg,vorbis,vorbisfile,vorbisenc,FLAC,fontconfig,icui18n60,icuuc60,icudata60,icudata60,iconv,ass,fribidi,exiv2,fftw*,zip,SoundTouch,samplerate}.so \
 		$QTBASE/lib/libQt5{OpenGL,WebKitWidgets,WebKit,Sensors,Positioning,MultimediaWidgets,Multimedia,PrintSupport,Quick,Qml,WebChannel}.so \
 		; do
 		if [ -e "$i" ]; then
 			cp "$i" "$MYTHINSTALLROOT/libs/$ANDROID_TARGET_ARCH/"
 		fi
 	done
-	VERSIONNAME=$(date +"%F" | tr -d '-')-$BUNDLE_NAME-$(grep "define MYTH_SOURCE_VERSION" libs/libmythbase/version.h | cut -d' ' -f 3 | tr -d '"')
+	VERSIONNAME=$(date +"%F" | tr -d '-')-$BUNDLE_NAME-$(grep "const char\* MYTH_SOURCE_VERSION" libs/libmythbase/version.h | cut -d' ' -f 7 | tr -d '"')
         # TODO: Eventually do something reasonable with versionCode.
 	VERSIONCODE=1
 
 	extraedit=
 	if [ $ANDROID_NATIVE_API_LEVEL -le 19 ] ; then
-		extraedit='s~android:banner="@drawable/banner"~~'
+		extraedit+='s~android:banner="@drawable/banner"~~'
 	fi
+        if [ $ANDROID_NATIVE_API_LEVEL -le 22 ] ; then
+		extraedit+='s/android:extractNativeLibs="true"//'
+        fi
 	# Setup the real Android versionName and versionCode..
 	sed "s/\(android:versionName\)=\"1.0\"/\1=\"$VERSIONNAME\"/
 		 s/\(android:versionCode\)=\"1\"/\1=\"$VERSIONCODE\"/
+		 s/\(android:targetSdkVersion\)=\"\(?:\d+\)\"/\1=\"$TARGET_SDK_VERSION\"/
 		$extraedit" \
 		../../AndroidManifest.xml.in \
 		>../../android-package-source/AndroidManifest.xml
 
 	cat programs/mythfrontend/android-mythfrontend-deployment-settings.json
+
+	QMAKE_STRIP="${CROSSPATH_LLVM}strip"
 	$QTBASE/bin/androiddeployqt \
 		--output $INSTALLROOT \
 		$DEPLOYTYPE \
@@ -309,7 +397,9 @@ if [ ! -d ${INSTALLROOT} ]; then
     mv ${INSTALLROOT}.tmp ${INSTALLROOT}
 fi
 
-if [ $SHADOW_BUILD = 1 ]; then
+create_helper_headers
+
+if [ $SHADOW_BUILD == 1 ]; then
 	rm -r $MYMYTHBUILDBASEPATH
 	mkdir -p $MYMYTHBUILDBASEPATH || true
 	cd $MYMYTHBUILDBASEPATH
@@ -356,8 +446,12 @@ $MYTHTVSRC/configure \
 	--target-os=android \
 	--cc="clang" \
 	--cxx="clang++" \
+	--ar="${CROSSPATH_LLVM}ar" \
+	--nm="${CROSSPATH_LLVM}nm" \
+	--ranlib="${CROSSPATH_LLVM}ranlib" \
 	--enable-set-cc-default \
 	--compile-type=$CONFIGUREBUILDTYPE \
+	--enable-silent-cc \
 	--pkg-config=$(which pkg-config) \
 	--prefix=/ \
 	--runprefix=/ \
@@ -366,8 +460,8 @@ $MYTHTVSRC/configure \
 	--enable-cross-compile \
 	--sysroot=$SYSROOT \
 	--sysinclude="no-special-cec-inc-path" \
-	--extra-cflags="-D__ANDROID_API__=$ANDROID_NATIVE_API_LEVEL -DANDROID -I$SYSROOT/usr1/include -I$INSTALLROOT/include -I$QTBASE/include $IGNOREDEFINES $NEONFLAGS -rdynamic " \
-	--extra-cxxflags="-D__ANDROID_API__=$ANDROID_NATIVE_API_LEVEL -I$SYSROOT/usr1/include/c++/v1 -I$SYSROOT/usr1/include -DANDROID -I$INSTALLROOT/include -I$QTBASE/include $IGNOREDEFINES $NEONFLAGS -rdynamic " \
+	--extra-cflags="-D__ANDROID_API__=$ANDROID_NATIVE_API_LEVEL -DANDROID -I$SYSROOT/usr1/include -I$INSTALLROOT/include -I$QTBASE/include $IGNOREDEFINES $NEONFLAGS $EXTRA_DEFINES -rdynamic " \
+	--extra-cxxflags="-D__ANDROID_API__=$ANDROID_NATIVE_API_LEVEL -I$SYSROOT/usr1/include/c++/v1 -I$SYSROOT/usr1/include -DANDROID -I$INSTALLROOT/include -I$QTBASE/include $IGNOREDEFINES $NEONFLAGS $EXTRA_DEFINES -rdynamic " \
 	--extra-ldflags="-rdynamic -Wl,-rpath-link=$INSTALLROOT/lib -Wl,-rpath-link=$SYSROOTARCH/usr/lib -Wl,-rpath-link=$SYSROOT/usr/lib" \
 	--qmake=$QTBASE/bin/qmake \
 	--qmakespecs="android-clang $EXTRASPECS" \
@@ -431,6 +525,8 @@ if [ -e stamp_configure_android ] ; then
 		echo "*** make plugins ***"
 		make_plugins
 	fi
+	echo "*** deploy-fontconfig ***"
+	deploy-fontconfig
 	echo "*** deploy-extra-libs ***"
 	deploy-extra-libs
 	echo "*** androiddeployqt ***"

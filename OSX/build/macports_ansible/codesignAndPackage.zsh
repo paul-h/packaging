@@ -21,7 +21,10 @@ For example, you can modify your user's ~/.zprofile to include:
   export APP_BNDL_ID="org.mythtv.mythfrontend"
 
 To notarize the application, your app password must be in your keychain as
-MYTHFRONTEND_APP_PWD. To do this, run the following command:
+MYTHFRONTEND_APP_PWD.
+To do this with Xcode 13 or newer, run the follwoing command:
+  xcrun notarytool store-credentials "MYTHFRONTEND_APP_PWD" --apple-id "YOUR_APPLE_ID" --team-id="YOUR_TEAM_ID" --password "YOUR_APP_PWD"
+To do this with older versions of Xcode, run the following command:
   security add-generic-password -a "YOUR_APPLE_ID" -w "YOUR_APP_PWD" -s "MYTHFRONTEND_APP_PWD"
 EOF
 
@@ -51,39 +54,39 @@ checkNotarization(){
   APPLE_ID=$2
   # loop until the notarization process finishes
   # loop for about 20 minutes, then exit
-  WAITIME=20
-  LOOPMAX=$(expr 1200 / $WAITIME)
+  WAITTIME=20
+  LOOPMAX=$(expr 1200 / $WAITTIME)
   # loop for ~20 minutes
   # Add initial sleep to prevent failing before the notarization task is accepted
   sleep $WAITTIME
   for ((i=1;i<=$LOOPMAX;i++));
   do
     # get notarization status
-    noteOutput=$(xcrun altool --notarization-info $APP_UUID -u $APPLE_ID -p "@keychain:MYTHFRONTEND_APP_PWD")
+    notaOutput=$(xcrun altool --notarization-info $APP_UUID -u $APPLE_ID -p "@keychain:MYTHFRONTEND_APP_PWD")
     # extract out the status line
-    STATUS=$(echo $noteOutput| gsed 1d | gsed 's/^.*Status: *//')
+    STATUS=$(echo $notaOutput| gsed 1d | gsed 's/^.*Status: *//')
     case $STATUS in
       # notarization still in progrss (can take 15 or so minutes)
       *progress*)
-        echo >&2 "      Waiting an additional $WAITIME seconds"
-        sleep $WAITIME
+        echo >&2 "      Waiting an additional $WAITTIME seconds"
+        sleep $WAITTIME
         ;;
       # status reflects success
       *sucess*)
-        echo >&2 $noteOutput
+        echo >&2 $notaOutput
         echo >&2 "      Notaization Accepted"
         retval=true
         break
         ;;
       # status reflects approval
       *Approved*)
-        echo >&2 $noteOutput
+        echo >&2 $notaOutput
         echo >&2 "      Notaization Accepted"
         retval=true
         break
         ;;
       *)
-        echo >&2 $noteOutput
+        echo >&2 $notaOutput
         echo >&2 "      Notarization Failed or Timedout, exiting"
         retval=false
         break
@@ -92,6 +95,8 @@ checkNotarization(){
   done
   echo $retval
 }
+
+/usr/bin/security unlock-keychain
 
 # make sure we have a valid path to mythfrontent.app
 APP_NAME=$(basename $APP)
@@ -111,18 +116,15 @@ APP_RSRC_DIR=$APP/Contents/Resources
 APP_FMWK_DIR=$APP/Contents/Frameworks
 APP_EXE_DIR=$APP/Contents/MacOS
 APP_PLUGINS_DIR=$APP_FMWK_DIR/PlugIns/
-ARCH=$(/usr/bin/arch)
+ARCH=$(/usr/bin/uname -m)
 OS_VERS=$(/usr/bin/sw_vers -productVersion)
+XCODE_VERS=$(/usr/bin/xcodebuild -version|grep "Xcode"|gsed 's/^.*Xcode *//'|grep -o '^[^.]\+')
 VERS=$(/usr/libexec/PlistBuddy -c 'print ":CFBundleShortVersionString"' $APP/Contents/Info.plist)
-FULLVERS=$($APP_EXE_DIR/mythfrontend --version|grep "MythTV Version"|gsed 's/^.*Version : *//')
-# trim -dirty in case we've patched the repo / fixed the Xcode 12.5 VERSION bug
-FULLVERS=${FULLVERS%-dirty}
 # check to see if the application has PlugIns
 HAS_PLUGINS=false
-if [ -e $APP_FMWK_DIR/PlugIns/libmythweather.dylib ]; then
+if [ -e $APP_PLUGINS_DIR/libmythweather.dylib ]; then
   HAS_PLUGINS=true
 fi
-
 # setup codesign / notarization variables
 echo "------------ Setup Code Signing Variables ------------"
 if [ -z $CODESIGN_ID ]; then
@@ -132,14 +134,16 @@ if [ -z $APP_BNDL_ID ]; then
   # check if the user exported a custom bumdle ID, if not use the default
   APP_BNDL_ID=$APP_DFLT_BNDL_ID
 fi
-# to notarize the application, your app password must be in your keychain
-APPLE_ID=$(security find-generic-password -s "MYTHFRONTEND_APP_PWD" |grep acct|gsed 's/^.*<blob>=*//')
-if [ -z $APPLE_ID ]; then
-  echo "To notarize the application, your app password must be in your keychain as MYTHFRONTEND_APP_PWD"
-  echo "You can get an App password (with valid Apple ID) here: https://appleid.apple.com/account/manage"
-  echo "To do this, run the following command:"
-  echo '     security add-generic-password -a "YOUR_APPLE_ID" -w "YOUR_APP_PWD" -s "MYTHFRONTEND_APP_PWD"'
-  exit
+# to notarize the application with Xcode < 13, your app password must be in your keychain
+if [ $XCODE_VERS -lt 13 ]; then
+  APPLE_ID=$(security find-generic-password -s "MYTHFRONTEND_APP_PWD" |grep acct|gsed 's/^.*<blob>=*//')
+  if [ -z $APPLE_ID ]; then
+    echo "To notarize the application, your app password must be in your keychain as MYTHFRONTEND_APP_PWD"
+    echo "You can get an App password (with valid Apple ID) here: https://appleid.apple.com/account/manage"
+    echo "To do this, run the following command:"
+    echo '     security add-generic-password -a "YOUR_APPLE_ID" -w "YOUR_APP_PWD" -s "MYTHFRONTEND_APP_PWD"'
+    exit
+  fi
 fi
 
 echo "------------ Signing Application  ------------"
@@ -177,6 +181,12 @@ find $APP_RSRC_DIR -name '*.so' -print0 |
   while IFS= read -r -d '' line; do
       codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" "$line"
   done
+# Also missed are any dylibs in the Resources directory,
+find $APP_RSRC_DIR -name '*.dylib' -print0 |
+  while IFS= read -r -d '' line; do
+      codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" "$line"
+  done
+codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" $APP_FMWK_DIR/Qt*
 codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" $APP_FMWK_DIR/*.framework
 codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" $APP_FMWK_DIR/*.dylib
 codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" $APP_FMWK_DIR/PlugIns/*.dylib
@@ -186,6 +196,7 @@ codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements enti
 codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" $APP_EXE_DIR/mythpreviewgen
 codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" $APP_EXE_DIR/mythfrontend
 codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist --continue -i "$APP_BNDL_ID" $APP_EXE_DIR/mythfrontend.sh
+
 # finally sign the application
 codesign -v -s $CODESIGN_ID --timestamp --options runtime -f --entitlements entitlement.plist $APP
 # verify that the codesigning took
@@ -195,15 +206,33 @@ rm entitlement.plist
 
 echo "------------ Notarizing Application  ------------"
 echo "------------ Preparing App for Notarization  ------------"
+echo "      Creating file for submission"
 /usr/bin/ditto -c -k --keepParent $APP $APP.zip
 # notarize the App file
 # send the zipped dmg file to apple for notarization
-noteOutput=$(xcrun altool --notarize-app --primary-bundle-id $APP_BNDL_ID -u $APPLE_ID -p "@keychain:MYTHFRONTEND_APP_PWD" --file $APP.zip)
-# extract the upload specific UUID since we need it to track notarization status
-APP_UUID=$(echo $noteOutput| gsed 1d | gsed 's/^.*RequestUUID = *//')
-echo "App UUID is :$APP_UUID"
-echo "     Waiting on notarization to complete  ------------"
-NOTE_SUCCESS=$(checkNotarization $APP_UUID $APPLE_ID)
+echo "      Submitting file for notarization"
+if [ $XCODE_VERS -ge 13 ]; then
+  notaOutput=$(xcrun notarytool submit $APP.zip --keychain-profile "MYTHFRONTEND_APP_PWD" --wait)
+  echo $notaOutput
+  STATUS=$(echo $notaOutput | grep "status:"| gsed 1d | gsed 's/^.*status: *//')
+  echo $STATUS
+  case $STATUS in
+    *Accepted*)
+      echo "      Notaization Accepted"
+      NOTE_SUCCESS=true
+      ;;
+    *)
+      echo "      Notarization Failed or Timedout, exiting"
+      NOTE_SUCCESS=false
+  esac
+else
+  notaOutput=$(xcrun altool --notarize-app --primary-bundle-id $APP_BNDL_ID -u $APPLE_ID -p "@keychain:MYTHFRONTEND_APP_PWD" --file $APP.zip)
+  # extract the upload specific UUID since we need it to track notarization status
+  APP_UUID=$(echo $notaOutput| gsed 1d | gsed 's/^.*RequestUUID = *//')
+  echo "App UUID is :$APP_UUID"
+  echo "     Waiting on notarization to complete  ------------"
+  NOTE_SUCCESS=$(checkNotarization $APP_UUID $APPLE_ID)
+fi
 
 # clean up zip file
 rm $APP.zip
@@ -217,12 +246,17 @@ else
 fi
 
 echo "------------ Generating .dmg file  ------------"
+# on M1, the application will not run until notarized.  Now we need to extract the
+# the git version from the app after app signing...
+FULLVERS=$($APP_EXE_DIR/mythfrontend --version|grep "MythTV Version"|gsed 's/^.*Version : *//')
+
 # Package up the build
 if $HAS_PLUGINS; then
-  VOL_NAME=MythFrontend-$VERS-$ARCH-$OS_VERS-$FULLVERS-with-plugins
+  VOL_NAME=MythFrontend-$ARCH-$OS_VERS-$FULLVERS-with-plugins
 else
-  VOL_NAME=MythFrontend-$VERS-$ARCH-$OS_VERS-$FULLVERS
+  VOL_NAME=MythFrontend-$ARCH-$OS_VERS-$FULLVERS
 fi
+echo $VOL_NAME
 DMG_FILE=$VOL_NAME.dmg
 
 # Archive off any previous files
@@ -237,12 +271,28 @@ codesign --deep --force --verify --verbose --sign $CODESIGN_ID --options runtime
 # notarize the dmg file
 echo "------------ Notarizing DMG  ------------"
 # send the zipped dmg file to apple for notarization
-noteOutput=$(xcrun altool --notarize-app --primary-bundle-id $APP_BNDL_ID -u $APPLE_ID -p "@keychain:MYTHFRONTEND_APP_PWD" --file $DMG_FILE)
-# extract the upload specific UUID since we need it to track notarization status
-APP_UUID=$(echo $noteOutput| gsed 1d | gsed 's/^.*RequestUUID = *//')
-echo "DMG UUID is :$APP_UUID"
-echo "     Waiting on notarization to complete  ------------"
-NOTE_SUCCESS=$(checkNotarization $APP_UUID $APPLE_ID)
+echo "      Submitting dmg for notarization"
+if [ $XCODE_VERS -ge 13 ]; then
+  notaOutput=$(xcrun notarytool submit $DMG_FILE --keychain-profile "MYTHFRONTEND_APP_PWD" --wait)
+  echo $notaOutput
+  STATUS=$(echo $notaOutput | grep "status:"| gsed 1d | gsed 's/^.*status: *//')
+  case $STATUS in
+    *Accepted*)
+      echo "      Notaization Accepted"
+      NOTE_SUCCESS=true
+      ;;
+    *)
+      echo "      Notarization Failed or Timedout, exiting"
+      NOTE_SUCCESS=false
+  esac
+else
+  notaOutput=$(xcrun altool --notarize-app --primary-bundle-id $APP_BNDL_ID -u $APPLE_ID -p "@keychain:MYTHFRONTEND_APP_PWD" --file $DMG_FILE)
+  # extract the upload specific UUID since we need it to track notarization status
+  APP_UUID=$(echo $notaOutput| gsed 1d | gsed 's/^.*RequestUUID = *//')
+  echo "DMG UUID is :$APP_UUID"
+  echo "     Waiting on notarization to complete  ------------"
+  NOTE_SUCCESS=$(checkNotarization $APP_UUID $APPLE_ID)
+fi
 
 # if notarization if successful, staple the notarization onto the dmg file
 if $NOTE_SUCCESS; then

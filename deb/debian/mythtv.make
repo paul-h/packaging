@@ -24,9 +24,9 @@ EPOCH:=$(shell echo $(DEB_VERSION) | sed 's/:.*//')
 TODAY:=$(shell date +%Y%m%d)
 CURRENT_GIT_HASH:=$(shell git rev-parse --short HEAD)
 
-MAIN_GIT_URL=git://github.com/paul-h/mythtv.git
-MYTHWEB_GIT_URL=git://github.com/MythTV/mythweb.git
-MYTHBUNTU_THEME_GIT_URL=git://github.com/MythTV-Themes/Mythbuntu.git
+MAIN_GIT_URL=https://github.com/paul-h/mythtv.git
+MYTHWEB_GIT_URL=https://github.com/MythTV/mythweb.git
+MYTHBUNTU_THEME_GIT_URL=https://github.com/MythTV-Themes/Mythbuntu.git
 
 ifeq "$(GIT_TYPE)" "master"
 	GIT_BRANCH:=master
@@ -162,10 +162,3 @@ info:
 		"OLD Hash: $(LAST_GIT_HASH)\n" \
 		"Current branch hash: $(CURRENT_GIT_HASH)\n" \
 		"Current date: $(TODAY)\n" \
-
-update-control-files:
-	rm -f debian/control
-	sed "s/#TYPE#/$(GIT_TYPE)/; s/#ABI#/$(ABI)/" debian/control.in > debian/control
-	if [ "$(GIT_TYPE)" = "master" ]; then \
-		sed -i debian/control -e 's/Recommends:\ mythtv-themes.*/Recommends:\ mythtv-themes, mythtv-dbg/' ;\
-	fi

@@ -1,4 +1,10 @@
-mythtv (2:33.0~mythqml) focal; urgency=medium
+mythtv (2:34.0~mythqml) lunar; urgency=medium
+
+  * Dummy entry to bump version to 34
+
+ -- Paul Harrison <mythtv@mythqml.net>  Fri, 03 Feb 2023 19:24:00 +0000
+
+mythtv (2:33.0~master) focal; urgency=medium
 
   * Dummy entry to bump version to 33
 
