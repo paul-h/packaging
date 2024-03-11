@@ -1,4 +1,10 @@
-mythtv (2:34.0~mythqml) lunar; urgency=medium
+mythtv (2:35.0~mythqml) manic; urgency=medium
+
+  * Dummy entry to bump version to 35
+
+ -- Paul Harrison <mythtv@mythqml.net>  Mon, 11 Mar 2024 12:45:00 +0000
+
+mythtv (2:34.0~master) lunar; urgency=medium
 
   * Dummy entry to bump version to 34
 
